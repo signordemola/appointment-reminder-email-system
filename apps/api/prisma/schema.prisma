@@ -1,16 +1,184 @@
 generator client {
-  provider = "prisma-client"
-  output   = "../src/generated/prisma"
+  provider              = "prisma-client"
+  output                = "../src/generated/prisma"
+  moduleFormat          = "esm"
+  generatedFileExtension = "ts"
+  importFileExtension   = "js"
 }
 
 datasource db {
   provider = "postgresql"
 }
 
-model User {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  name      String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+enum AppointmentStatus {
+  scheduled
+  confirmed
+  reschedule_requested
+  canceled
+  completed
+  no_show
+}
+
+enum ConfirmationStatus {
+  pending
+  confirmed
+  expired
+  skipped
+}
+
+enum ReminderChannel {
+  email
+}
+
+enum ReminderEventType {
+  confirmation_request
+  reminder
+  follow_up
+}
+
+enum ReminderEventStatus {
+  pending
+  locked
+  sent
+  delivered
+  opened
+  clicked
+  bounced
+  failed
+  canceled
+  skipped
+}
+
+enum AppointmentActionType {
+  confirm
+  reschedule
+}
+
+enum RescheduleRequestStatus {
+  pending
+  accepted
+  dismissed
+}
+
+model Contact {
+  id           String        @id @default(uuid()) @db.Uuid
+  fullName     String
+  email        String        @unique
+  phone        String?
+  timezone     String
+  emailOptOut  Boolean       @default(false)
+  appointments Appointment[]
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  @@index([fullName])
+}
+
+model Appointment {
+  id                 String                   @id @default(uuid()) @db.Uuid
+  contactId          String                   @db.Uuid
+  contact            Contact                  @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  title              String
+  locationName       String?
+  startsAtUtc        DateTime
+  endsAtUtc          DateTime?
+  displayTimezone    String
+  status             AppointmentStatus        @default(scheduled)
+  confirmationStatus ConfirmationStatus       @default(pending)
+  externalReference  String?
+  reminderEvents     ReminderEvent[]
+  actionTokens       AppointmentActionToken[]
+  rescheduleRequests RescheduleRequest[]
+  createdAt          DateTime                 @default(now())
+  updatedAt          DateTime                 @updatedAt
+
+  @@index([contactId])
+  @@index([startsAtUtc])
+  @@index([status])
+  @@index([confirmationStatus])
+  @@index([externalReference])
+}
+
+model ReminderRule {
+  id             String          @id @default(uuid()) @db.Uuid
+  name           String          @unique
+  channel        ReminderChannel @default(email)
+  eventType      ReminderEventType
+  offsetMinutes  Int
+  active         Boolean         @default(true)
+  reminderEvents ReminderEvent[]
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  @@index([active, eventType])
+}
+
+model ReminderEvent {
+  id                String              @id @default(uuid()) @db.Uuid
+  appointmentId     String              @db.Uuid
+  appointment       Appointment         @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+  ruleId            String?             @db.Uuid
+  rule              ReminderRule?       @relation(fields: [ruleId], references: [id], onDelete: SetNull)
+  channel           ReminderChannel     @default(email)
+  eventType         ReminderEventType
+  scheduledForUtc   DateTime
+  status            ReminderEventStatus @default(pending)
+  provider          String?
+  providerMessageId String?
+  lockedAt          DateTime?
+  processedAt       DateTime?
+  errorMessage      String?
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+
+  @@index([appointmentId, scheduledForUtc])
+  @@index([status, scheduledForUtc])
+  @@index([providerMessageId])
+}
+
+model AppointmentActionToken {
+  id            String                @id @default(uuid()) @db.Uuid
+  appointmentId String                @db.Uuid
+  appointment   Appointment           @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+  actionType    AppointmentActionType
+  tokenHash     String                @unique
+  expiresAt     DateTime
+  usedAt        DateTime?
+  createdAt     DateTime              @default(now())
+  updatedAt     DateTime              @updatedAt
+
+  @@index([appointmentId, actionType])
+  @@index([expiresAt])
+}
+
+model RescheduleRequest {
+  id                  String                  @id @default(uuid()) @db.Uuid
+  appointmentId       String                  @db.Uuid
+  appointment         Appointment             @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+  preferredStartAtUtc DateTime
+  preferredTimezone   String
+  message             String?
+  status              RescheduleRequestStatus @default(pending)
+  reviewedAt          DateTime?
+  reviewedBy          String?
+  createdAt           DateTime                @default(now())
+  updatedAt           DateTime                @updatedAt
+
+  @@index([appointmentId])
+  @@index([status, createdAt])
+}
+
+model EmailWebhookEvent {
+  id                String   @id @default(uuid()) @db.Uuid
+  provider          String
+  providerEventId   String?  @unique
+  providerMessageId String
+  eventType         String
+  payloadJson       Json
+  receivedAt        DateTime @default(now())
+
+  @@index([provider, providerEventId])
+  @@index([provider, providerMessageId])
+  @@index([eventType])
+  @@index([receivedAt])
 }

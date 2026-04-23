@@ -1,28 +1,45 @@
-import { createPrismaClient } from "../src/lib/prisma";
+import { createPrismaClient } from "../src/lib/prisma.js";
 
 const prisma = createPrismaClient();
 
 async function main() {
-  const users = await Promise.all([
-    prisma.user.upsert({
-      where: { email: "alice@prisma.io" },
-      update: { name: "Alice" },
-      create: {
-        email: "alice@prisma.io",
-        name: "Alice",
-      },
-    }),
-    prisma.user.upsert({
-      where: { email: "bob@prisma.io" },
-      update: { name: "Bob" },
-      create: {
-        email: "bob@prisma.io",
-        name: "Bob",
-      },
-    }),
-  ]);
+  const rules = [
+    {
+      name: "Immediate confirmation request",
+      eventType: "confirmation_request" as const,
+      offsetMinutes: 0,
+    },
+    {
+      name: "24 hour reminder",
+      eventType: "reminder" as const,
+      offsetMinutes: -1440,
+    },
+    {
+      name: "1 hour reminder",
+      eventType: "reminder" as const,
+      offsetMinutes: -60,
+    },
+  ];
 
-  console.log(`Seeded ${users.length} users.`);
+  for (const rule of rules) {
+    await prisma.reminderRule.upsert({
+      where: {
+        name: rule.name,
+      },
+      update: {
+        active: true,
+        eventType: rule.eventType,
+        offsetMinutes: rule.offsetMinutes,
+      },
+      create: {
+        name: rule.name,
+        eventType: rule.eventType,
+        offsetMinutes: rule.offsetMinutes,
+      },
+    });
+  }
+
+  console.log(`Seeded ${rules.length} reminder rules.`);
 }
 
 main()
