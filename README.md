@@ -1,159 +1,207 @@
-# Turborepo starter
+# Appointment Reminder Email System
 
-This Turborepo starter is maintained by the Turborepo core team.
+Appointment Reminder Email System is a portfolio-grade demo for small appointment-based businesses. It is designed to show a credible operations workflow for reducing no-shows, capturing confirmations, handling reschedule requests, and giving staff better visibility into reminder delivery.
 
-## Using this example
+This repo is a `pnpm` + Turborepo monorepo with:
 
-Run the following command:
+- `apps/web`: Next.js 16 admin and public workflow frontend
+- `apps/api`: NestJS 11 API with Prisma 7, Neon/Postgres, Resend, and Gemini AI features
 
-```sh
-npx create-turbo@latest
+## What It Covers
+
+- Admin dashboard with reminder activity, delivery failures, no-shows, and pending confirmations
+- Appointment roster, appointment detail timeline, and new appointment flow
+- CSV import for appointments with row-level validation feedback
+- Public confirmation and reschedule pages with expiring action tokens
+- Reminder rule management and manual dispatch of due reminders
+- Resend-backed email delivery flow
+- AI reschedule triage for the inbox
+- AI reminder copy generation for transactional email drafts
+
+## Stack
+
+- Next.js 16 App Router
+- React 19
+- NestJS 11
+- Prisma ORM 7
+- PostgreSQL / Neon
+- Resend
+- Google Gemini 2.5 Flash via `@google/genai`
+- Turborepo + `pnpm`
+
+## Repo Layout
+
+```text
+apps/
+  api/  NestJS API, Prisma schema, seed, Resend, Gemini integrations
+  web/  Next.js admin dashboard and public action pages
 ```
 
-## What's inside?
+## Prerequisites
 
-This Turborepo includes the following packages/apps:
+- Node.js `20.19.0` or newer
+- `pnpm`
+- PostgreSQL connection string
 
-### Apps and Packages
+Why `20.19.0+`:
 
-- `docs`: a [Next.js](https://nextjs.org/) app
-- `web`: another [Next.js](https://nextjs.org/) app
-- `@repo/ui`: a stub React component library shared by both `web` and `docs` applications
-- `@repo/eslint-config`: `eslint` configurations (includes `eslint-config-next` and `eslint-config-prettier`)
-- `@repo/typescript-config`: `tsconfig.json`s used throughout the monorepo
+- Next.js 16 requires Node `20.9+`
+- Prisma ORM 7 requires Node `20.19.0+`, `22.12.0+`, or `24.0.0+`
+- The Google GenAI SDK requires Node 20 or later
 
-Each package/app is 100% [TypeScript](https://www.typescriptlang.org/).
+For the smoothest local and deployment setup, use Node 22 LTS or 24 LTS.
 
-### Utilities
+## Local Setup
 
-This Turborepo has some additional tools already setup for you:
+1. Install dependencies from the repo root:
 
-- [TypeScript](https://www.typescriptlang.org/) for static type checking
-- [ESLint](https://eslint.org/) for code linting
-- [Prettier](https://prettier.io) for code formatting
-
-### Build
-
-To build all apps and packages, run the following command:
-
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed (recommended):
-
-```sh
-cd my-turborepo
-turbo build
+```bash
+pnpm install
 ```
 
-Without global `turbo`, use your package manager:
+2. Copy `apps/api/.env.example` to `apps/api/.env`.
 
-```sh
-cd my-turborepo
-npx turbo build
-pnpm dlx turbo build
-pnpm exec turbo build
+3. Copy `apps/web/.env.example` to `apps/web/.env.local`.
+
+4. Generate Prisma client, sync the schema, and seed the demo data:
+
+```bash
+pnpm --filter api run db:generate
+pnpm --filter api run db:push
+pnpm --filter api run db:seed
 ```
 
-You can build a specific package by using a [filter](https://turborepo.dev/docs/crafting-your-repository/running-tasks#using-filters):
+5. Start the API:
 
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed:
-
-```sh
-turbo build --filter=docs
+```bash
+cd apps/api
+pnpm build
+pnpm start
 ```
 
-Without global `turbo`:
+6. In a second terminal, start the web app:
 
-```sh
-npx turbo build --filter=docs
-pnpm exec turbo build --filter=docs
-pnpm exec turbo build --filter=docs
+```bash
+cd apps/web
+pnpm dev
 ```
 
-### Develop
+Open `http://localhost:3000`. The root route redirects to `/dashboard`.
 
-To develop all apps and packages, run the following command:
+## Environment Variables
 
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed (recommended):
+### API
 
-```sh
-cd my-turborepo
-turbo dev
+Use `apps/api/.env.example` as the source of truth.
+
+Required for the core demo:
+
+- `DATABASE_URL`
+- `PORT`
+- `CORS_ORIGIN`
+- `PUBLIC_WEB_URL`
+- `INTERNAL_JOB_SECRET`
+
+Required for real email sending:
+
+- `RESEND_API_KEY`
+- `RESEND_FROM_EMAIL`
+- `RESEND_REPLY_TO`
+
+Optional for live webhook verification:
+
+- `RESEND_WEBHOOK_SECRET`
+
+Required for AI features:
+
+- `GEMINI_API_KEY_1`
+- optional `GEMINI_API_KEY_2`
+- optional fallback `GEMINI_API_KEY` or `GOOGLE_API_KEY`
+- optional `GEMINI_MODEL`
+
+Important: Gemini rotation only increases real free-tier headroom if the keys come from different Google AI Studio or Google Cloud projects.
+
+### Web
+
+Use `apps/web/.env.example` as the source of truth.
+
+- `NEXT_PUBLIC_API_URL`
+- `API_URL`
+- `INTERNAL_JOB_SECRET`
+
+In practice, set `NEXT_PUBLIC_API_URL` and `API_URL` to the same API origin unless you have a more specialized setup.
+
+## Useful Commands
+
+From the repo root:
+
+```bash
+pnpm build
+pnpm check-types
+pnpm lint
 ```
 
-Without global `turbo`, use your package manager:
+API-only:
 
-```sh
-cd my-turborepo
-npx turbo dev
-pnpm exec turbo dev
-pnpm exec turbo dev
+```bash
+pnpm --filter api run db:generate
+pnpm --filter api run db:push
+pnpm --filter api run db:seed
+pnpm --filter api run build
 ```
 
-You can develop a specific package by using a [filter](https://turborepo.dev/docs/crafting-your-repository/running-tasks#using-filters):
+## Deployment
 
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed:
+### Frontend on Vercel
 
-```sh
-turbo dev --filter=web
-```
+Current Vercel monorepo guidance is to import the repo and set a project Root Directory for each app you deploy. For this frontend:
 
-Without global `turbo`:
+- Framework preset: `Next.js`
+- Root Directory: `apps/web`
+- Node.js version: `20.x` or newer
+- Environment variables:
+  - `NEXT_PUBLIC_API_URL=https://your-api-domain.com`
+  - `API_URL=https://your-api-domain.com`
+  - `INTERNAL_JOB_SECRET=...`
 
-```sh
-npx turbo dev --filter=web
-pnpm exec turbo dev --filter=web
-pnpm exec turbo dev --filter=web
-```
+### API on Render
 
-### Remote Caching
+Render supports monorepos through a service Root Directory. For this API:
 
-> [!TIP]
-> Vercel Remote Cache is free for all plans. Get started today at [vercel.com](https://vercel.com/signup?utm_source=remote-cache-sdk&utm_campaign=free_remote_cache).
+- Runtime: `Node`
+- Root Directory: `apps/api`
+- Build Command: `pnpm install && pnpm build`
+- Start Command: `pnpm start`
+- Node.js version: `20.19.0+`
 
-Turborepo can use a technique known as [Remote Caching](https://turborepo.dev/docs/core-concepts/remote-caching) to share cache artifacts across machines, enabling you to share build caches with your team and CI/CD pipelines.
+Add these API envs in Render:
 
-By default, Turborepo will cache locally. To enable Remote Caching you will need an account with Vercel. If you don't have an account you can [create one](https://vercel.com/signup?utm_source=turborepo-examples), then enter the following commands:
+- `DATABASE_URL`
+- `PORT`
+- `CORS_ORIGIN=https://your-web-domain.com`
+- `PUBLIC_WEB_URL=https://your-web-domain.com`
+- `INTERNAL_JOB_SECRET=...`
+- `RESEND_API_KEY`
+- `RESEND_FROM_EMAIL`
+- `RESEND_REPLY_TO`
+- Gemini key envs if you want the AI features live
 
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed (recommended):
+If you enable the web dashboard's manual dispatch control, `INTERNAL_JOB_SECRET` must match in both the web and API deployments.
 
-```sh
-cd my-turborepo
-turbo login
-```
+## Demo Walkthrough
 
-Without global `turbo`, use your package manager:
+The cleanest recorded flow for a freelance portfolio demo is:
 
-```sh
-cd my-turborepo
-npx turbo login
-pnpm exec turbo login
-pnpm exec turbo login
-```
+1. Open the dashboard and show reminder activity, pending confirmations, and failures.
+2. Open the appointments list and detail timeline.
+3. Import a CSV batch.
+4. Dispatch due reminders from the dashboard.
+5. Open a seeded public confirm or reschedule link.
+6. Return to the reschedule inbox and run AI triage.
+7. Open settings and generate reminder copy with Gemini.
 
-This will authenticate the Turborepo CLI with your [Vercel account](https://vercel.com/docs/concepts/personal-accounts/overview).
+## Notes
 
-Next, you can link your Turborepo to your Remote Cache by running the following command from the root of your Turborepo:
-
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed:
-
-```sh
-turbo link
-```
-
-Without global `turbo`:
-
-```sh
-npx turbo link
-pnpm exec turbo link
-pnpm exec turbo link
-```
-
-## Useful Links
-
-Learn more about the power of Turborepo:
-
-- [Tasks](https://turborepo.dev/docs/crafting-your-repository/running-tasks)
-- [Caching](https://turborepo.dev/docs/crafting-your-repository/caching)
-- [Remote Caching](https://turborepo.dev/docs/core-concepts/remote-caching)
-- [Filtering](https://turborepo.dev/docs/crafting-your-repository/running-tasks#using-filters)
-- [Configuration Options](https://turborepo.dev/docs/reference/configuration)
-- [CLI Usage](https://turborepo.dev/docs/reference/command-line-reference)
+- This app is optimized as a believable freelance demo, not as a full HIPAA-ready production system.
+- The API intentionally uses database-backed reminder planning instead of BullMQ because the target deployment path is lightweight demo hosting.
+- If you deploy the same database used locally, you do not need to reseed just because your frontend domain changes.

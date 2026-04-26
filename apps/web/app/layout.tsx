@@ -1,5 +1,13 @@
+import type { Metadata } from "next"
+
 import "./globals.css"
-import { ThemeProvider } from "@/components/theme-provider"
+import { Providers } from "@/components/providers"
+
+export const metadata: Metadata = {
+  title: "Appointment Reminder System",
+  description:
+    "Operations dashboard for appointment confirmations, reminders, and reschedule workflows.",
+}
 
 export default function RootLayout({
   children,
@@ -9,7 +17,7 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning className="antialiased">
       <body>
-        <ThemeProvider>{children}</ThemeProvider>
+        <Providers>{children}</Providers>
       </body>
     </html>
   )

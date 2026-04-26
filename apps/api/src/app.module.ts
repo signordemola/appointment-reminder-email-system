@@ -1,6 +1,7 @@
 import { Module } from "@nestjs/common";
 
 import { AppController } from "./app.controller.js";
+import { AiModule } from "./modules/ai/ai.module.js";
 import { ActionsModule } from "./modules/actions/actions.module.js";
 import { AppointmentsModule } from "./modules/appointments/appointments.module.js";
 import { ContactsModule } from "./modules/contacts/contacts.module.js";
@@ -14,6 +15,7 @@ import { PrismaModule } from "./prisma/prisma.module.js";
 @Module({
   imports: [
     PrismaModule,
+    AiModule,
     ContactsModule,
     RemindersModule,
     ActionsModule,
