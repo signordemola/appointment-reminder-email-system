@@ -1,38 +1,24 @@
 "use client"
 
-import { useState } from "react"
-
-import { useMutation } from "@tanstack/react-query"
+import { useMutation, useQueryClient } from "@tanstack/react-query"
 
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
-import {
-  generateRescheduleTriage,
-  type RescheduleTriageResult,
-} from "@/lib/api"
+import { generateRescheduleTriage, type RescheduleTriageResult } from "@/lib/api"
 
-const urgencyTone: Record<
-  RescheduleTriageResult["triage"]["urgency"],
-  string
-> = {
+const urgencyTone: Record<RescheduleTriageResult["triage"]["urgency"], string> = {
   low: "bg-emerald-100 text-emerald-800 dark:bg-emerald-500/15 dark:text-emerald-200",
   medium: "bg-amber-100 text-amber-800 dark:bg-amber-500/15 dark:text-amber-200",
   high: "bg-rose-100 text-rose-700 dark:bg-rose-500/15 dark:text-rose-200",
 }
 
-const riskTone: Record<
-  RescheduleTriageResult["triage"]["operationalRisk"],
-  string
-> = {
+const riskTone: Record<RescheduleTriageResult["triage"]["operationalRisk"], string> = {
   none: "bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-100",
   watch: "bg-amber-100 text-amber-800 dark:bg-amber-500/15 dark:text-amber-200",
   urgent: "bg-rose-100 text-rose-700 dark:bg-rose-500/15 dark:text-rose-200",
 }
 
-const confidenceTone: Record<
-  RescheduleTriageResult["triage"]["confidence"],
-  string
-> = {
+const confidenceTone: Record<RescheduleTriageResult["triage"]["confidence"], string> = {
   low: "bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-100",
   medium: "bg-sky-100 text-sky-800 dark:bg-sky-500/15 dark:text-sky-200",
   high: "bg-indigo-100 text-indigo-800 dark:bg-indigo-500/15 dark:text-indigo-200",
@@ -61,15 +47,24 @@ function TriagePill({
   )
 }
 
-function TriagePanel({ requestId }: { requestId: string }) {
-  const [result, setResult] = useState<RescheduleTriageResult | null>(null)
+function TriagePanel({
+  requestId,
+  initialResult = null,
+}: {
+  requestId: string
+  initialResult?: RescheduleTriageResult | null
+}) {
+  const queryClient = useQueryClient()
 
   const mutation = useMutation({
     mutationFn: () => generateRescheduleTriage(requestId),
-    onSuccess: (data) => {
-      setResult(data)
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({
+        queryKey: ["reschedule-requests"],
+      })
     },
   })
+  const result = mutation.data ?? initialResult
 
   const errorMessage =
     mutation.error instanceof Error
@@ -84,7 +79,7 @@ function TriagePanel({ requestId }: { requestId: string }) {
             AI Triage
           </p>
           <p className="text-xs text-muted-foreground">
-            Summarize risk, reason, and the next front-desk action.
+            Turn the client message into an ops-ready summary for the front desk.
           </p>
         </div>
         <Button
@@ -94,7 +89,7 @@ function TriagePanel({ requestId }: { requestId: string }) {
           disabled={mutation.isPending}
           onClick={() => mutation.mutate()}
         >
-          {mutation.isPending ? "Analyzing..." : result ? "Refresh" : "Run Triage"}
+          {mutation.isPending ? "Analyzing..." : result ? "Refresh AI" : "Run AI"}
         </Button>
       </div>
 
@@ -135,7 +130,7 @@ function TriagePanel({ requestId }: { requestId: string }) {
               </dt>
               <dd className="text-foreground">
                 {formatEnumLabel(result.triage.recommendedAction)}
-                {result.triage.needsHumanFollowUp ? " • human follow-up needed" : ""}
+                {result.triage.needsHumanFollowUp ? " - human follow-up needed" : ""}
               </dd>
             </div>
 
@@ -152,9 +147,7 @@ function TriagePanel({ requestId }: { requestId: string }) {
               <dt className="text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
                 Suggested Reply
               </dt>
-              <dd className="text-muted-foreground">
-                {result.triage.suggestedReply}
-              </dd>
+              <dd className="text-muted-foreground">{result.triage.suggestedReply}</dd>
             </div>
           </dl>
 
@@ -177,12 +170,12 @@ function TriagePanel({ requestId }: { requestId: string }) {
           ) : null}
 
           <p className="text-[0.68rem] text-muted-foreground">
-            Generated with {result.provider} • {result.model}
+            Generated with {result.provider} - {result.model}
           </p>
         </div>
       ) : (
         <p className="text-sm text-muted-foreground">
-          Run the AI pass to turn an inbound reschedule message into an ops-ready summary.
+          AI triage will appear here after the request is interpreted for the front desk.
         </p>
       )}
     </div>

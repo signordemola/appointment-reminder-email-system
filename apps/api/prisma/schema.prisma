@@ -158,6 +158,10 @@ model RescheduleRequest {
   preferredStartAtUtc DateTime
   preferredTimezone   String
   message             String?
+  aiTriageJson        Json?
+  aiTriageProvider    String?
+  aiTriageModel       String?
+  aiTriageGeneratedAt DateTime?
   status              RescheduleRequestStatus @default(pending)
   reviewedAt          DateTime?
   reviewedBy          String?
@@ -166,6 +170,7 @@ model RescheduleRequest {
 
   @@index([appointmentId])
   @@index([status, createdAt])
+  @@index([aiTriageGeneratedAt])
 }
 
 model EmailWebhookEvent {

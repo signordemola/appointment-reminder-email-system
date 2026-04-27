@@ -3,13 +3,19 @@ import {
   ConflictException,
   GoneException,
   Injectable,
+  Logger,
   NotFoundException,
 } from "@nestjs/common";
 
 import { createRawActionToken, hashActionToken } from "../../common/utils/action-tokens.js";
 import { TRANSACTION_OPTIONS } from "../../common/utils/database.js";
 import { Prisma } from "../../generated/prisma/client.js";
+import { AiProviderService } from "../../integrations/ai/ai-provider.service.js";
 import { PrismaService } from "../../prisma/prisma.service.js";
+import {
+  buildRescheduleTriageContext,
+  RESCHEDULE_REQUEST_TRIAGE_INCLUDE,
+} from "../ai/reschedule-triage-context.js";
 import { ReminderPlannerService } from "../reminders/reminder-planner.service.js";
 import type { CreateRescheduleRequestInput } from "./dto/create-reschedule-request.dto.js";
 
@@ -26,6 +32,7 @@ const APPOINTMENT_SUMMARY_INCLUDE = {
 
 @Injectable()
 export class ActionsService {
+  private readonly logger = new Logger(ActionsService.name);
   private readonly publicWebUrl = (process.env.PUBLIC_WEB_URL ?? "http://localhost:3000").replace(
     /\/$/,
     "",
@@ -34,6 +41,7 @@ export class ActionsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly reminderPlanner: ReminderPlannerService,
+    private readonly aiProviderService: AiProviderService,
   ) {}
 
   async issueTokensForAppointment(
@@ -156,7 +164,7 @@ export class ActionsService {
   }
 
   async createRescheduleRequest(rawToken: string, input: CreateRescheduleRequestInput) {
-    return this.prisma.$transaction(async (transaction) => {
+    const result = await this.prisma.$transaction(async (transaction) => {
       const tokenRecord = await this.findUsableToken(transaction, rawToken, "reschedule");
       const existingPendingRequest = await transaction.rescheduleRequest.findFirst({
         where: {
@@ -208,6 +216,51 @@ export class ActionsService {
         request,
       };
     }, TRANSACTION_OPTIONS);
+
+    await this.generateAutomaticRescheduleTriage(result.request.id);
+
+    return result;
+  }
+
+  private async generateAutomaticRescheduleTriage(rescheduleRequestId: string) {
+    if (!this.aiProviderService.isConfigured()) {
+      return;
+    }
+
+    try {
+      const request = await this.prisma.rescheduleRequest.findUnique({
+        where: {
+          id: rescheduleRequestId,
+        },
+        include: RESCHEDULE_REQUEST_TRIAGE_INCLUDE,
+      });
+
+      if (!request) {
+        return;
+      }
+
+      const result = await this.aiProviderService.triageRescheduleRequest(
+        buildRescheduleTriageContext(request),
+      );
+
+      await this.prisma.rescheduleRequest.update({
+        where: {
+          id: request.id,
+        },
+        data: {
+          aiTriageJson: result.triage as unknown as Prisma.InputJsonValue,
+          aiTriageProvider: result.provider,
+          aiTriageModel: result.model,
+          aiTriageGeneratedAt: new Date(),
+        },
+      });
+    } catch (error) {
+      this.logger.warn({
+        event: "actions.reschedule_request.ai_triage_skipped",
+        rescheduleRequestId,
+        message: error instanceof Error ? error.message : "Unknown AI triage error",
+      });
+    }
   }
 
   private async findUsableToken(

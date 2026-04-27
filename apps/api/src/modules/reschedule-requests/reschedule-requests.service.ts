@@ -3,6 +3,7 @@ import { ConflictException, Injectable, NotFoundException } from "@nestjs/common
 import { TRANSACTION_OPTIONS } from "../../common/utils/database.js";
 import { Prisma } from "../../generated/prisma/client.js";
 import { PrismaService } from "../../prisma/prisma.service.js";
+import { parsePersistedRescheduleTriageSnapshot } from "../ai/reschedule-triage-context.js";
 import { ActionsService } from "../actions/actions.service.js";
 import { ReminderPlannerService } from "../reminders/reminder-planner.service.js";
 import type { ReviewRescheduleRequestInput } from "./dto/review-reschedule-request.dto.js";
@@ -32,7 +33,30 @@ export class RescheduleRequestsService {
       orderBy: {
         createdAt: "desc",
       },
-    });
+    }).then((requests) =>
+      requests.map((request) => {
+        const persistedTriage = parsePersistedRescheduleTriageSnapshot({
+          aiTriageJson: request.aiTriageJson,
+          aiTriageProvider: request.aiTriageProvider,
+          aiTriageModel: request.aiTriageModel,
+          aiTriageGeneratedAt: request.aiTriageGeneratedAt,
+        });
+
+        return {
+          ...request,
+          aiTriage: persistedTriage
+            ? {
+                generatedAt: persistedTriage.generatedAt,
+                rescheduleRequestId: request.id,
+                appointmentId: request.appointmentId,
+                provider: persistedTriage.provider,
+                model: persistedTriage.model,
+                triage: persistedTriage.triage,
+              }
+            : null,
+        };
+      }),
+    );
   }
 
   async review(rescheduleRequestId: string, input: ReviewRescheduleRequestInput) {

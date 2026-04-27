@@ -1,6 +1,7 @@
 import { faker } from "@faker-js/faker";
 
 import { hashActionToken } from "../src/common/utils/action-tokens.js";
+import type { RescheduleTriage } from "../src/integrations/ai/ai.types.js";
 import { createPrismaClient } from "../src/lib/prisma.js";
 
 const prisma = createPrismaClient();
@@ -135,6 +136,13 @@ type SampleLink = {
   confirmUrl: string;
   rescheduleUrl: string;
   note?: string;
+};
+
+type SeedRescheduleTriageSnapshot = {
+  provider: "gemini";
+  model: string;
+  generatedAt: Date;
+  triage: RescheduleTriage;
 };
 
 const supportedTimezones: Array<{
@@ -878,6 +886,67 @@ function buildErrorMessage(state: EventState) {
   }
 }
 
+function buildSeedRescheduleTriageSnapshot(input: {
+  appointmentTitle: string;
+  appointmentStartsAtUtc: Date;
+  request: RescheduleHistorySpec;
+}): SeedRescheduleTriageSnapshot | null {
+  const message = input.request.message.trim().toLowerCase();
+  const hoursUntilAppointment = Number(
+    ((input.appointmentStartsAtUtc.getTime() - input.request.createdAt.getTime()) / (60 * 60 * 1000)).toFixed(1),
+  );
+  const generatedAt = addMinutes(input.request.createdAt, faker.number.int({ min: 2, max: 6 }));
+
+  const baseTriage: RescheduleTriage = {
+    urgency: hoursUntilAppointment <= 12 ? "high" : "medium",
+    likelyReasonCategory: "schedule_conflict",
+    confidence: "high",
+    recommendedAction: "offer_alternatives",
+    needsHumanFollowUp: false,
+    operationalRisk: hoursUntilAppointment <= 12 ? "urgent" : "watch",
+    adminSummary: `Routine reschedule request for ${input.appointmentTitle}. Review the requested time and offer the closest available alternative if needed.`,
+    suggestedReply:
+      "Thanks for the update. We received your request and will review the preferred time. If that slot is not available, we will send the closest alternative options.",
+    riskFlags: ["time change requested"],
+  };
+
+  if (message.includes("travel")) {
+    baseTriage.likelyReasonCategory = "transportation";
+    baseTriage.riskFlags = ["travel timing"];
+  } else if (message.includes("handover") || message.includes("staff")) {
+    baseTriage.likelyReasonCategory = "work_conflict";
+    baseTriage.riskFlags = ["schedule handover"];
+  } else if (message.includes("practitioner availability")) {
+    baseTriage.likelyReasonCategory = "needs_more_information";
+    baseTriage.recommendedAction = "dismiss_request";
+    baseTriage.needsHumanFollowUp = true;
+    baseTriage.operationalRisk = "watch";
+    baseTriage.adminSummary = `Rejected reschedule attempt for ${input.appointmentTitle}. The requested slot conflicted with practitioner availability.`;
+    baseTriage.suggestedReply =
+      "Thanks for the request. That specific time was not available, so the team closed this request and will follow up with alternatives if needed.";
+    baseTriage.riskFlags = ["slot conflict"];
+  }
+
+  if (input.request.status === "accepted") {
+    baseTriage.recommendedAction = "accept_requested_time";
+    baseTriage.operationalRisk = "none";
+    baseTriage.adminSummary = `Accepted reschedule for ${input.appointmentTitle}. The new time was clear and the schedule was updated.`;
+    baseTriage.suggestedReply =
+      "Thanks for the update. Your requested change was accepted and the appointment schedule was updated.";
+    baseTriage.riskFlags = ["time change completed"];
+  } else if (input.request.status === "dismissed") {
+    baseTriage.recommendedAction = "dismiss_request";
+    baseTriage.needsHumanFollowUp = true;
+  }
+
+  return {
+    provider: "gemini",
+    model: "gemini-2.5-flash",
+    generatedAt,
+    triage: baseTriage,
+  };
+}
+
 function buildProcessedAt(
   scheduledForUtc: Date,
   state: EventState,
@@ -1295,12 +1364,22 @@ async function seedAppointment(
       }
 
       for (const request of lifecycle.rescheduleRequests) {
+        const triageSnapshot = buildSeedRescheduleTriageSnapshot({
+          appointmentTitle: spec.title,
+          appointmentStartsAtUtc: spec.startsAtUtc,
+          request,
+        });
+
         await transaction.rescheduleRequest.create({
           data: {
             appointmentId: appointment.id,
             preferredStartAtUtc: request.preferredStartAtUtc,
             preferredTimezone: request.preferredTimezone,
             message: request.message,
+            aiTriageJson: triageSnapshot?.triage,
+            aiTriageProvider: triageSnapshot?.provider ?? null,
+            aiTriageModel: triageSnapshot?.model ?? null,
+            aiTriageGeneratedAt: triageSnapshot?.generatedAt ?? null,
             status: request.status,
             reviewedAt: request.reviewedAt ?? null,
             reviewedBy: request.reviewedBy ?? null,

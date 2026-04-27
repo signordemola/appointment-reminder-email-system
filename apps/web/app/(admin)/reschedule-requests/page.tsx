@@ -77,7 +77,7 @@ export default async function RescheduleRequestsPage() {
                       <ReviewActions requestId={request.id} />
                     </td>
                     <td className="min-w-[24rem] px-5 py-4 align-top">
-                      <TriagePanel requestId={request.id} />
+                      <TriagePanel requestId={request.id} initialResult={request.aiTriage} />
                     </td>
                   </tr>
                 ))}

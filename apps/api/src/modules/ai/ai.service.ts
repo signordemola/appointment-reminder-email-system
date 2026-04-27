@@ -4,14 +4,11 @@ import { Prisma } from "../../generated/prisma/client.js";
 import { AiProviderService } from "../../integrations/ai/ai-provider.service.js";
 import { PrismaService } from "../../prisma/prisma.service.js";
 import type { CreateReminderCopyInput } from "./dto/create-reminder-copy.dto.js";
-
-const RESCHEDULE_REQUEST_TRIAGE_INCLUDE = {
-  appointment: {
-    include: {
-      contact: true,
-    },
-  },
-} satisfies Prisma.RescheduleRequestInclude;
+import {
+  buildRescheduleTriageContext,
+  parsePersistedRescheduleTriageSnapshot,
+  RESCHEDULE_REQUEST_TRIAGE_INCLUDE,
+} from "./reschedule-triage-context.js";
 
 @Injectable()
 export class AiService {
@@ -32,51 +29,36 @@ export class AiService {
       throw new NotFoundException("Reschedule request not found.");
     }
 
-    const now = Date.now();
-    const hoursUntilAppointment = Number(
-      ((request.appointment.startsAtUtc.getTime() - now) / (60 * 60 * 1000)).toFixed(1),
+    const result = await this.aiProviderService.triageRescheduleRequest(
+      buildRescheduleTriageContext(request),
     );
+    const generatedAt = new Date();
 
-    const result = await this.aiProviderService.triageRescheduleRequest({
-      request: {
+    const updatedRequest = await this.prisma.rescheduleRequest.update({
+      where: {
         id: request.id,
-        status: request.status,
-        createdAt: request.createdAt.toISOString(),
-        preferredStartAtUtc: request.preferredStartAtUtc.toISOString(),
-        preferredTimezone: request.preferredTimezone,
-        ...(request.message ? { message: request.message } : {}),
       },
-      appointment: {
-        id: request.appointment.id,
-        title: request.appointment.title,
-        startsAtUtc: request.appointment.startsAtUtc.toISOString(),
-        displayTimezone: request.appointment.displayTimezone,
-        status: request.appointment.status,
-        confirmationStatus: request.appointment.confirmationStatus,
-        hoursUntilAppointment,
-        ...(request.appointment.locationName ? { locationName: request.appointment.locationName } : {}),
-        ...(request.appointment.endsAtUtc
-          ? { endsAtUtc: request.appointment.endsAtUtc.toISOString() }
-          : {}),
-        ...(request.appointment.externalReference
-          ? { externalReference: request.appointment.externalReference }
-          : {}),
+      data: {
+        aiTriageJson: result.triage as unknown as Prisma.InputJsonValue,
+        aiTriageProvider: result.provider,
+        aiTriageModel: result.model,
+        aiTriageGeneratedAt: generatedAt,
       },
-      contact: {
-        fullName: request.appointment.contact.fullName,
-        email: request.appointment.contact.email,
-        timezone: request.appointment.contact.timezone,
-        emailOptOut: request.appointment.contact.emailOptOut,
-      },
+    });
+    const persistedTriage = parsePersistedRescheduleTriageSnapshot({
+      aiTriageJson: updatedRequest.aiTriageJson,
+      aiTriageProvider: updatedRequest.aiTriageProvider,
+      aiTriageModel: updatedRequest.aiTriageModel,
+      aiTriageGeneratedAt: updatedRequest.aiTriageGeneratedAt,
     });
 
     return {
-      generatedAt: new Date().toISOString(),
+      generatedAt: persistedTriage?.generatedAt ?? generatedAt.toISOString(),
       rescheduleRequestId: request.id,
       appointmentId: request.appointmentId,
       provider: result.provider,
       model: result.model,
-      triage: result.triage,
+      triage: persistedTriage?.triage ?? result.triage,
     };
   }
 

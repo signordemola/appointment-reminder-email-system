@@ -68,6 +68,7 @@ type RescheduleRequest = {
   createdAt: string
   updatedAt: string
   appointment: AppointmentListItem
+  aiTriage?: RescheduleTriageResult | null
 }
 
 type AiRescheduleTriage = {
