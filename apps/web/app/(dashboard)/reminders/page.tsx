@@ -1,6 +1,9 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import * as z from 'zod'
 import {
   Bell,
   Clock,
@@ -45,6 +48,21 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { cn } from '@/lib/utils'
+import { useReminderRules, useCreateReminderRule, useToggleReminderRule, useDeleteReminderRule, type ReminderRule as ApiReminderRule } from '@/lib/hooks/use-reminders'
+import { Skeleton } from '@/components/ui/skeleton'
+import { toast } from 'sonner'
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
+
+const reminderFormSchema = z.object({
+  name: z.string().min(1, 'Rule name is required'),
+  channel: z.enum(['email', 'sms']),
+  triggerType: z.enum(['before', 'after']),
+  offsetHours: z.string().min(1, 'Please select a time offset'),
+  templateSubject: z.string().optional(),
+  templateBody: z.string().min(1, 'Message template is required'),
+})
+
+type ReminderFormValues = z.infer<typeof reminderFormSchema>
 
 interface ReminderRule {
   id: string
@@ -58,62 +76,28 @@ interface ReminderRule {
   sentCount: number
 }
 
-const reminderRules: ReminderRule[] = [
-  {
-    id: '1',
-    name: '24-Hour Reminder',
-    channel: 'email',
-    triggerType: 'before',
-    triggerHours: 24,
-    templateSubject: 'Reminder: Your appointment is tomorrow',
-    templateBody: 'Hi {{contact_name}}, this is a friendly reminder that you have an appointment for {{service_type}} scheduled for {{appointment_date}} at {{appointment_time}}.',
-    isActive: true,
-    sentCount: 156,
-  },
-  {
-    id: '2',
-    name: '2-Hour Reminder',
-    channel: 'email',
-    triggerType: 'before',
-    triggerHours: 2,
-    templateSubject: 'Your appointment is in 2 hours',
-    templateBody: 'Hi {{contact_name}}, just a quick reminder that your {{service_type}} appointment is coming up in 2 hours at {{appointment_time}}. We look forward to seeing you!',
-    isActive: true,
-    sentCount: 142,
-  },
-  {
-    id: '3',
-    name: 'SMS Day-Before',
-    channel: 'sms',
-    triggerType: 'before',
-    triggerHours: 24,
-    templateBody: 'Reminder: You have a {{service_type}} appointment tomorrow at {{appointment_time}}. Reply CONFIRM to confirm or call to reschedule.',
-    isActive: true,
-    sentCount: 89,
-  },
-  {
-    id: '4',
-    name: 'Follow-Up Email',
-    channel: 'email',
-    triggerType: 'after',
-    triggerHours: 24,
-    templateSubject: 'How was your appointment?',
-    templateBody: 'Hi {{contact_name}}, thank you for visiting us yesterday! We hope you enjoyed your {{service_type}}. We would love to hear your feedback.',
-    isActive: false,
-    sentCount: 67,
-  },
-  {
-    id: '5',
-    name: '1-Week Reminder',
-    channel: 'email',
-    triggerType: 'before',
-    triggerHours: 168,
-    templateSubject: 'Your upcoming appointment next week',
-    templateBody: 'Hi {{contact_name}}, this is a reminder that you have a {{service_type}} appointment scheduled for {{appointment_date}} at {{appointment_time}}. Mark your calendar!',
-    isActive: true,
-    sentCount: 45,
-  },
-]
+function mapApiReminderRule(apiRule: ApiReminderRule): ReminderRule {
+  let triggerType: 'before' | 'after' = 'before'
+  if (apiRule.eventType === 'follow_up') {
+    triggerType = 'after'
+  } else if (apiRule.eventType === 'reminder' && apiRule.offsetMinutes > 0) {
+    triggerType = 'after'
+  } else {
+    triggerType = 'before'
+  }
+
+  return {
+    id: apiRule.id,
+    name: apiRule.name,
+    channel: apiRule.channel === 'email' ? 'email' : 'sms',
+    triggerType,
+    triggerHours: Math.abs(apiRule.offsetMinutes) / 60,
+    templateSubject: apiRule.templateSubject ?? undefined,
+    templateBody: apiRule.templateBody ?? '',
+    isActive: apiRule.active,
+    sentCount: apiRule.sentCount,
+  }
+}
 
 function formatTriggerTime(hours: number, type: 'before' | 'after') {
   if (hours < 24) {
@@ -125,16 +109,82 @@ function formatTriggerTime(hours: number, type: 'before' | 'after') {
 }
 
 export default function RemindersPage() {
-  const [rules, setRules] = useState(reminderRules)
+  const [dialogOpen, setDialogOpen] = useState(false)
 
-  const toggleRule = (id: string) => {
-    setRules(rules.map(rule => 
-      rule.id === id ? { ...rule, isActive: !rule.isActive } : rule
-    ))
-  }
+  const form = useForm<ReminderFormValues>({
+    resolver: zodResolver(reminderFormSchema),
+    defaultValues: {
+      name: '',
+      channel: 'email',
+      triggerType: 'before',
+      offsetHours: '24',
+      templateSubject: '',
+      templateBody: '',
+    },
+  })
 
+  const { data: apiRules, isLoading, error } = useReminderRules()
+  const createRule = useCreateReminderRule()
+  const toggleRule = useToggleReminderRule()
+  const deleteRule = useDeleteReminderRule()
+
+  const rules = useMemo(() => apiRules?.map(mapApiReminderRule) ?? [], [apiRules])
   const activeRules = rules.filter(r => r.isActive)
   const inactiveRules = rules.filter(r => !r.isActive)
+
+  const handleToggleRule = async (id: string, currentActive: boolean) => {
+    try {
+      await toggleRule.mutateAsync({ id, active: !currentActive })
+      toast.success(currentActive ? 'Rule deactivated' : 'Rule activated')
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to toggle rule')
+    }
+  }
+
+  const handleDeleteRule = async (id: string) => {
+    try {
+      await deleteRule.mutateAsync(id)
+      toast.success('Rule deleted')
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to delete rule')
+    }
+  }
+
+  const handleCreateRule = async (values: ReminderFormValues) => {
+    const offsetMinutes = Number(values.offsetHours) * (values.triggerType === 'before' ? -1 : 1)
+    const eventType = values.triggerType === 'before' ? 'reminder' : 'follow_up'
+    try {
+      await createRule.mutateAsync({
+        name: values.name,
+        eventType,
+        channel: values.channel,
+        offsetMinutes,
+        templateSubject: values.templateSubject || undefined,
+        templateBody: values.templateBody,
+      })
+      toast.success('Rule created successfully')
+      setDialogOpen(false)
+      form.reset()
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to create rule')
+    }
+  }
+
+  if (error) {
+    return (
+      <>
+        <Header title="Reminder Rules" breadcrumbs={[{ label: 'Dashboard', href: '/' }, { label: 'Reminder Rules' }]} />
+        <div className="flex flex-1 flex-col gap-6 p-6">
+          <Card>
+            <CardContent className="p-6">
+              <p className="text-destructive">Failed to load reminder rules.</p>
+              <p className="text-sm text-muted-foreground">{error.message}</p>
+            </CardContent>
+          </Card>
+        </div>
+      </>
+    )
+  }
 
   return (
     <>
@@ -145,7 +195,7 @@ export default function RemindersPage() {
           { label: 'Reminder Rules' },
         ]}
         actions={
-          <Dialog>
+          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
             <DialogTrigger asChild>
               <Button size="sm">
                 <Plus className="mr-2 size-4" />
@@ -154,78 +204,138 @@ export default function RemindersPage() {
               </Button>
             </DialogTrigger>
             <DialogContent className="sm:max-w-lg">
-              <DialogHeader>
-                <DialogTitle>Create Reminder Rule</DialogTitle>
-                <DialogDescription>
-                  Set up an automated reminder that will be sent to clients.
-                </DialogDescription>
-              </DialogHeader>
-              <div className="grid gap-4 py-4">
-                <div className="grid gap-2">
-                  <Label htmlFor="name">Rule Name</Label>
-                  <Input id="name" placeholder="e.g., 24-Hour Reminder" />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="grid gap-2">
-                    <Label>Channel</Label>
-                    <Select defaultValue="email">
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="email">Email</SelectItem>
-                        <SelectItem value="sms">SMS</SelectItem>
-                      </SelectContent>
-                    </Select>
+              <Form {...form}>
+                <form onSubmit={form.handleSubmit(handleCreateRule)}>
+                  <DialogHeader>
+                    <DialogTitle>Create Reminder Rule</DialogTitle>
+                    <DialogDescription>
+                      Set up an automated reminder that will be sent to clients.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="grid gap-4 py-4">
+                    <FormField
+                      control={form.control}
+                      name="name"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Rule Name</FormLabel>
+                          <FormControl>
+                            <Input placeholder="e.g., 24-Hour Reminder" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <div className="grid grid-cols-2 gap-4">
+                      <FormField
+                        control={form.control}
+                        name="channel"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Channel</FormLabel>
+                            <FormControl>
+                              <Select value={field.value} onValueChange={field.onChange}>
+                                <SelectTrigger>
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="email">Email</SelectItem>
+                                  <SelectItem value="sms">SMS</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="triggerType"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Trigger</FormLabel>
+                            <FormControl>
+                              <Select value={field.value} onValueChange={field.onChange}>
+                                <SelectTrigger>
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="before">Before appointment</SelectItem>
+                                  <SelectItem value="after">After appointment</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                    <FormField
+                      control={form.control}
+                      name="offsetHours"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Time Offset</FormLabel>
+                          <FormControl>
+                            <Select value={field.value} onValueChange={field.onChange}>
+                              <SelectTrigger>
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="1">1 hour</SelectItem>
+                                <SelectItem value="2">2 hours</SelectItem>
+                                <SelectItem value="4">4 hours</SelectItem>
+                                <SelectItem value="24">24 hours (1 day)</SelectItem>
+                                <SelectItem value="48">48 hours (2 days)</SelectItem>
+                                <SelectItem value="168">168 hours (1 week)</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="templateSubject"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Email Subject</FormLabel>
+                          <FormControl>
+                            <Input placeholder="Reminder: Your appointment is coming up" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="templateBody"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Message Template</FormLabel>
+                          <FormControl>
+                            <Textarea
+                              rows={4}
+                              placeholder="Hi {{contact_name}}, this is a reminder..."
+                              {...field}
+                            />
+                          </FormControl>
+                          <p className="text-xs text-muted-foreground">
+                            Available variables: {'{{contact_name}}'}, {'{{service_type}}'}, {'{{appointment_date}}'}, {'{{appointment_time}}'}
+                          </p>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
                   </div>
-                  <div className="grid gap-2">
-                    <Label>Trigger</Label>
-                    <Select defaultValue="before">
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="before">Before appointment</SelectItem>
-                        <SelectItem value="after">After appointment</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-                <div className="grid gap-2">
-                  <Label>Time Offset</Label>
-                  <Select defaultValue="24">
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="1">1 hour</SelectItem>
-                      <SelectItem value="2">2 hours</SelectItem>
-                      <SelectItem value="4">4 hours</SelectItem>
-                      <SelectItem value="24">24 hours (1 day)</SelectItem>
-                      <SelectItem value="48">48 hours (2 days)</SelectItem>
-                      <SelectItem value="168">168 hours (1 week)</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="subject">Email Subject</Label>
-                  <Input id="subject" placeholder="Reminder: Your appointment is coming up" />
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="body">Message Template</Label>
-                  <Textarea 
-                    id="body" 
-                    rows={4}
-                    placeholder="Hi {{contact_name}}, this is a reminder..."
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Available variables: {'{{contact_name}}'}, {'{{service_type}}'}, {'{{appointment_date}}'}, {'{{appointment_time}}'}
-                  </p>
-                </div>
-              </div>
-              <DialogFooter>
-                <Button type="submit">Create Rule</Button>
-              </DialogFooter>
+                  <DialogFooter>
+                    <Button type="submit" disabled={createRule.isPending}>
+                      {createRule.isPending ? 'Creating...' : 'Create Rule'}
+                    </Button>
+                  </DialogFooter>
+                </form>
+              </Form>
             </DialogContent>
           </Dialog>
         }
@@ -234,47 +344,63 @@ export default function RemindersPage() {
       <div className="flex flex-1 flex-col gap-6 p-6">
         {/* Stats */}
         <div className="grid gap-4 sm:grid-cols-3">
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-2xl font-bold">{rules.length}</p>
-                  <p className="text-sm text-muted-foreground">Total Rules</p>
-                </div>
-                <div className="flex size-10 items-center justify-center rounded-lg bg-primary/10">
-                  <Bell className="size-5 text-primary" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-2xl font-bold">{activeRules.length}</p>
-                  <p className="text-sm text-muted-foreground">Active Rules</p>
-                </div>
-                <div className="flex size-10 items-center justify-center rounded-lg bg-status-confirmed/10">
-                  <Power className="size-5 text-status-confirmed" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-2xl font-bold">
-                    {rules.reduce((acc, r) => acc + r.sentCount, 0)}
-                  </p>
-                  <p className="text-sm text-muted-foreground">Reminders Sent</p>
-                </div>
-                <div className="flex size-10 items-center justify-center rounded-lg bg-muted">
-                  <Mail className="size-5 text-muted-foreground" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+          {isLoading ? (
+            Array.from({ length: 3 }).map((_, i) => (
+              <Card key={i}>
+                <CardContent className="p-6 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <Skeleton className="size-10 rounded-lg" />
+                  </div>
+                  <Skeleton className="h-8 w-12" />
+                  <Skeleton className="h-4 w-24" />
+                </CardContent>
+              </Card>
+            ))
+          ) : (
+            <>
+              <Card>
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-2xl font-bold">{rules.length}</p>
+                      <p className="text-sm text-muted-foreground">Total Rules</p>
+                    </div>
+                    <div className="flex size-10 items-center justify-center rounded-lg bg-primary/10">
+                      <Bell className="size-5 text-primary" />
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-2xl font-bold">{activeRules.length}</p>
+                      <p className="text-sm text-muted-foreground">Active Rules</p>
+                    </div>
+                    <div className="flex size-10 items-center justify-center rounded-lg bg-status-confirmed/10">
+                      <Power className="size-5 text-status-confirmed" />
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-2xl font-bold">
+                        {rules.reduce((acc, r) => acc + r.sentCount, 0)}
+                      </p>
+                      <p className="text-sm text-muted-foreground">Reminders Sent</p>
+                    </div>
+                    <div className="flex size-10 items-center justify-center rounded-lg bg-muted">
+                      <Mail className="size-5 text-muted-foreground" />
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </>
+          )}
         </div>
 
         {/* Active Rules */}
@@ -290,7 +416,23 @@ export default function RemindersPage() {
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              {activeRules.map((rule) => (
+              {isLoading ? (
+                Array.from({ length: 3 }).map((_, i) => (
+                  <div key={i} className="flex items-center justify-between rounded-lg border p-4">
+                    <div className="flex items-center gap-4">
+                      <Skeleton className="size-10 rounded-lg" />
+                      <div className="space-y-2">
+                        <Skeleton className="h-4 w-32" />
+                        <Skeleton className="h-3 w-48" />
+                      </div>
+                    </div>
+                    <Skeleton className="h-6 w-10" />
+                  </div>
+                ))
+              ) : activeRules.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No active rules.</p>
+              ) : (
+              activeRules.map((rule) => (
                 <div
                   key={rule.id}
                   className="flex items-center justify-between rounded-lg border p-4"
@@ -325,7 +467,8 @@ export default function RemindersPage() {
                   <div className="flex items-center gap-3">
                     <Switch
                       checked={rule.isActive}
-                      onCheckedChange={() => toggleRule(rule.id)}
+                      onCheckedChange={() => handleToggleRule(rule.id, rule.isActive)}
+                      disabled={toggleRule.isPending}
                     />
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
@@ -336,18 +479,22 @@ export default function RemindersPage() {
                       <DropdownMenuContent align="end">
                         <DropdownMenuItem>
                           <Pencil className="mr-2 size-4" />
-                          Edit rule
+                          Edit
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleToggleRule(rule.id, rule.isActive)}>
+                          <Power className="mr-2 size-4" />
+                          {rule.isActive ? 'Deactivate' : 'Activate'}
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
-                        <DropdownMenuItem className="text-destructive">
+                        <DropdownMenuItem className="text-destructive" onClick={() => handleDeleteRule(rule.id)} disabled={deleteRule.isPending}>
                           <Trash2 className="mr-2 size-4" />
-                          Delete rule
+                          Delete
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </div>
                 </div>
-              ))}
+              )))}
             </div>
           </CardContent>
         </Card>
@@ -398,7 +545,8 @@ export default function RemindersPage() {
                     <div className="flex items-center gap-3">
                       <Switch
                         checked={rule.isActive}
-                        onCheckedChange={() => toggleRule(rule.id)}
+                        onCheckedChange={() => handleToggleRule(rule.id, rule.isActive)}
+                        disabled={toggleRule.isPending}
                       />
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
@@ -412,7 +560,7 @@ export default function RemindersPage() {
                             Edit rule
                           </DropdownMenuItem>
                           <DropdownMenuSeparator />
-                          <DropdownMenuItem className="text-destructive">
+                          <DropdownMenuItem className="text-destructive" onClick={() => handleDeleteRule(rule.id)} disabled={deleteRule.isPending}>
                             <Trash2 className="mr-2 size-4" />
                             Delete rule
                           </DropdownMenuItem>

@@ -1,7 +1,7 @@
 'use client'
 
-import { useState } from 'react'
 import Link from 'next/link'
+import { DateTime } from 'luxon'
 import { 
   Calendar, 
   CheckCircle2, 
@@ -33,6 +33,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import { Skeleton } from '@/components/ui/skeleton'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -40,6 +41,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { cn } from '@/lib/utils'
+import { useDashboardSummary } from '@/lib/hooks/use-dashboard'
 
 // Mock data for the dashboard
 const stats = [
@@ -183,9 +185,125 @@ const statusStyles: Record<string, string> = {
   confirmed: 'bg-status-confirmed/10 text-status-confirmed border-status-confirmed/20',
   pending: 'bg-status-pending/10 text-status-pending border-status-pending/20',
   cancelled: 'bg-status-cancelled/10 text-status-cancelled border-status-cancelled/20',
+  no_show: 'bg-status-noshow/10 text-status-noshow border-status-noshow/20',
+  scheduled: 'bg-status-pending/10 text-status-pending border-status-pending/20',
+  reschedule_requested: 'bg-status-rescheduled/10 text-status-rescheduled border-status-rescheduled/20',
 }
 
 export default function DashboardPage() {
+  const { data, isLoading, error } = useDashboardSummary()
+
+  const metrics = data?.metrics
+  const totalReminders = (metrics?.remindersSentToday ?? 0) + (metrics?.deliveryFailures ?? 0) + (metrics?.bounceCount ?? 0)
+  const deliveryRate = totalReminders > 0 ? ((metrics?.remindersSentToday ?? 0) / totalReminders * 100) : 0
+
+  const totalAppts = (metrics?.confirmedAppointments ?? 0) + (metrics?.pendingConfirmations ?? 0)
+  const confirmationRate = totalAppts > 0 ? ((metrics?.confirmedAppointments ?? 0) / totalAppts * 100) : 0
+
+  const totalAllAppts = (metrics?.confirmedAppointments ?? 0) + (metrics?.pendingConfirmations ?? 0) + (metrics?.canceledAppointments ?? 0) + (metrics?.noShows ?? 0)
+  const noShowRate = totalAllAppts > 0 ? ((metrics?.noShows ?? 0) / totalAllAppts * 100) : 0
+
+  const stats = metrics ? [
+    {
+      title: "Today's Appointments",
+      value: metrics.appointmentsToday,
+      change: `${metrics.appointmentsToday} scheduled today`,
+      trend: 'neutral' as const,
+      icon: Calendar,
+      color: 'text-primary',
+      bgColor: 'bg-primary/10',
+    },
+    {
+      title: 'Confirmed',
+      value: metrics.confirmedAppointments,
+      change: `${Math.round(confirmationRate)}% confirmation rate`,
+      trend: 'up' as const,
+      icon: CheckCircle2,
+      color: 'text-status-confirmed',
+      bgColor: 'bg-status-confirmed/10',
+    },
+    {
+      title: 'Pending Response',
+      value: metrics.pendingConfirmations,
+      change: 'Awaiting confirmation',
+      trend: 'neutral' as const,
+      icon: Clock,
+      color: 'text-status-pending',
+      bgColor: 'bg-status-pending/10',
+    },
+    {
+      title: 'Reschedule Requests',
+      value: metrics.rescheduleRequests,
+      change: metrics.rescheduleRequests > 0 ? 'Needs attention' : 'All caught up',
+      trend: metrics.rescheduleRequests > 0 ? 'down' as const : 'neutral' as const,
+      icon: AlertTriangle,
+      color: 'text-destructive',
+      bgColor: 'bg-destructive/10',
+    },
+  ] : []
+
+  const upcomingToday = data?.upcomingToday?.map((appt) => ({
+    id: appt.id,
+    client: appt.contact.fullName,
+    service: appt.title,
+    time: DateTime.fromISO(appt.startsAtUtc).toFormat('h:mm a'),
+    status: appt.status,
+    avatar: null,
+    initials: appt.contact.fullName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2),
+    phone: appt.contact.phone || '',
+  })) ?? []
+
+  const recentActivity = data?.recentEvents?.map((event) => {
+    const iconMap: Record<string, typeof CheckCircle2> = {
+      sent: Mail,
+      delivered: MailCheck,
+      opened: MailCheck,
+      clicked: CheckCircle2,
+      failed: XCircle,
+      bounced: XCircle,
+    }
+    const colorMap: Record<string, string> = {
+      sent: 'text-primary',
+      delivered: 'text-status-confirmed',
+      opened: 'text-status-confirmed',
+      clicked: 'text-status-confirmed',
+      failed: 'text-destructive',
+      bounced: 'text-destructive',
+    }
+    const messageMap: Record<string, string> = {
+      sent: `Reminder sent to ${event.appointment.contact.fullName}`,
+      delivered: `Reminder delivered to ${event.appointment.contact.fullName}`,
+      opened: `${event.appointment.contact.fullName} opened their reminder`,
+      clicked: `${event.appointment.contact.fullName} clicked the reminder link`,
+      failed: `Reminder failed to send to ${event.appointment.contact.fullName}`,
+      bounced: `Reminder bounced for ${event.appointment.contact.fullName}`,
+    }
+    return {
+      id: event.id,
+      type: event.status,
+      message: messageMap[event.status] || `Event: ${event.status} for ${event.appointment.contact.fullName}`,
+      time: event.processedAt ? DateTime.fromISO(event.processedAt).toRelative() || 'Just now' : 'Just now',
+      icon: iconMap[event.status] || Mail,
+      iconColor: colorMap[event.status] || 'text-muted-foreground',
+    }
+  }) ?? []
+
+  if (error) {
+    return (
+      <>
+        <Header title="Dashboard" />
+        <div className="flex flex-1 flex-col gap-6 p-6">
+          <Card>
+            <CardContent className="p-6">
+              <p className="text-destructive">Failed to load dashboard data.</p>
+              <p className="text-sm text-muted-foreground">{error.message}</p>
+            </CardContent>
+          </Card>
+        </div>
+      </>
+    )
+  }
+
   return (
     <>
       <Header 
@@ -201,7 +319,17 @@ export default function DashboardPage() {
       <div className="flex flex-1 flex-col gap-6 p-6">
         {/* Stats Grid */}
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {stats.map((stat) => (
+          {isLoading ? Array.from({ length: 4 }).map((_, i) => (
+            <Card key={i}>
+              <CardContent className="p-6 space-y-4">
+                <div className="flex items-center justify-between">
+                  <Skeleton className="size-10 rounded-lg" />
+                </div>
+                <Skeleton className="h-8 w-16" />
+                <Skeleton className="h-4 w-32" />
+              </CardContent>
+            </Card>
+          )) : stats.map((stat) => (
             <Card key={stat.title}>
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
@@ -238,8 +366,13 @@ export default function DashboardPage() {
             </CardHeader>
             <CardContent>
               <div className="h-[280px]">
+                {isLoading ? (
+                  <div className="h-[280px] flex items-center justify-center">
+                    <Skeleton className="h-full w-full" />
+                  </div>
+                ) : (
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={weeklyData} barGap={4}>
+                  <BarChart data={data?.weeklyBreakdown || []} barGap={4}>
                     <CartesianGrid strokeDasharray="3 3" className="stroke-muted" vertical={false} />
                     <XAxis 
                       dataKey="day" 
@@ -280,6 +413,7 @@ export default function DashboardPage() {
                     />
                   </BarChart>
                 </ResponsiveContainer>
+                )}
               </div>
               <div className="mt-4 flex items-center justify-center gap-6">
                 <div className="flex items-center gap-2">
@@ -311,12 +445,12 @@ export default function DashboardPage() {
                     <MailCheck className="size-4 text-status-confirmed" />
                     <span>Email Delivery Rate</span>
                   </div>
-                  <span className="font-medium">98.5%</span>
+                  <span className="font-medium">{Math.round(deliveryRate)}%</span>
                 </div>
                 <div className="h-2 overflow-hidden rounded-full bg-muted">
-                  <div className="h-full bg-status-confirmed" style={{ width: '98.5%' }} />
+                  <div className="h-full bg-status-confirmed" style={{ width: `${Math.round(deliveryRate)}%` }} />
                 </div>
-                <p className="text-xs text-muted-foreground">247 of 251 emails delivered this week</p>
+                <p className="text-xs text-muted-foreground">{metrics?.remindersSentToday ?? 0} of {totalReminders} emails delivered this week</p>
               </div>
 
               <div className="space-y-2">
@@ -325,12 +459,12 @@ export default function DashboardPage() {
                     <CheckCircle2 className="size-4 text-primary" />
                     <span>Confirmation Rate</span>
                   </div>
-                  <span className="font-medium">72%</span>
+                  <span className="font-medium">{Math.round(confirmationRate)}%</span>
                 </div>
                 <div className="h-2 overflow-hidden rounded-full bg-muted">
-                  <div className="h-full bg-primary" style={{ width: '72%' }} />
+                  <div className="h-full bg-primary" style={{ width: `${Math.round(confirmationRate)}%` }} />
                 </div>
-                <p className="text-xs text-muted-foreground">36 of 50 clients confirmed</p>
+                <p className="text-xs text-muted-foreground">{metrics?.confirmedAppointments ?? 0} of {totalAppts} clients confirmed</p>
               </div>
 
               <div className="space-y-2">
@@ -339,12 +473,12 @@ export default function DashboardPage() {
                     <XCircle className="size-4 text-destructive" />
                     <span>No-show Rate</span>
                   </div>
-                  <span className="font-medium">4%</span>
+                  <span className="font-medium">{Math.round(noShowRate)}%</span>
                 </div>
                 <div className="h-2 overflow-hidden rounded-full bg-muted">
-                  <div className="h-full bg-destructive" style={{ width: '4%' }} />
+                  <div className="h-full bg-destructive" style={{ width: `${Math.round(noShowRate)}%` }} />
                 </div>
-                <p className="text-xs text-muted-foreground">2 no-shows this week</p>
+                <p className="text-xs text-muted-foreground">{metrics?.noShows ?? 0} no-shows this week</p>
               </div>
             </CardContent>
           </Card>
@@ -367,7 +501,16 @@ export default function DashboardPage() {
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
-                {upcomingAppointments.map((appointment) => (
+                {isLoading ? Array.from({ length: 3 }).map((_, i) => (
+                  <div key={i} className="flex items-center gap-3 rounded-lg border p-3">
+                    <Skeleton className="size-10 rounded-full" />
+                    <div className="flex-1 space-y-2">
+                      <Skeleton className="h-4 w-32" />
+                      <Skeleton className="h-3 w-24" />
+                    </div>
+                    <Skeleton className="h-8 w-20" />
+                  </div>
+                )) : upcomingToday.map((appointment) => (
                   <div
                     key={appointment.id}
                     className="flex items-center justify-between rounded-lg border p-3 transition-colors hover:bg-muted/50"
@@ -431,7 +574,15 @@ export default function DashboardPage() {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {recentActivity.map((activity) => (
+                {isLoading ? Array.from({ length: 4 }).map((_, i) => (
+                  <div key={i} className="flex gap-3">
+                    <Skeleton className="mt-0.5 size-4" />
+                    <div className="flex-1 space-y-1">
+                      <Skeleton className="h-4 w-full" />
+                      <Skeleton className="h-3 w-20" />
+                    </div>
+                  </div>
+                )) : recentActivity.map((activity) => (
                   <div key={activity.id} className="flex gap-3">
                     <div className={cn('mt-0.5', activity.iconColor)}>
                       <activity.icon className="size-4" />

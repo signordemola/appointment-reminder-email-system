@@ -1,5 +1,6 @@
 'use client'
 
+import * as React from 'react'
 import { Bell, Plus } from 'lucide-react'
 
 import { SidebarTrigger } from '@/components/ui/sidebar'
@@ -23,7 +24,7 @@ interface HeaderProps {
 
 export function Header({ title, breadcrumbs = [], actions }: HeaderProps) {
   return (
-    <header className="flex h-14 shrink-0 items-center gap-2 border-b bg-background px-4">
+    <header className="flex h-16 shrink-0 items-center gap-2 border-b bg-white p-5">
       <SidebarTrigger className="-ml-1" />
       <Separator orientation="vertical" className="mr-2 h-4" />
       
@@ -35,14 +36,20 @@ export function Header({ title, breadcrumbs = [], actions }: HeaderProps) {
             </BreadcrumbItem>
           ) : (
             breadcrumbs.map((crumb, index) => (
-              <BreadcrumbItem key={index}>
-                {index > 0 && <BreadcrumbSeparator />}
-                {crumb.href ? (
-                  <BreadcrumbLink href={crumb.href}>{crumb.label}</BreadcrumbLink>
-                ) : (
-                  <BreadcrumbPage>{crumb.label}</BreadcrumbPage>
+              <React.Fragment key={index}>
+                {index > 0 && (
+                  <BreadcrumbItem>
+                    <BreadcrumbSeparator />
+                  </BreadcrumbItem>
                 )}
-              </BreadcrumbItem>
+                <BreadcrumbItem>
+                  {crumb.href ? (
+                    <BreadcrumbLink href={crumb.href}>{crumb.label}</BreadcrumbLink>
+                  ) : (
+                    <BreadcrumbPage>{crumb.label}</BreadcrumbPage>
+                  )}
+                </BreadcrumbItem>
+              </React.Fragment>
             ))
           )}
         </BreadcrumbList>

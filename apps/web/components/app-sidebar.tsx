@@ -89,7 +89,7 @@ export function AppSidebar() {
       <SidebarHeader className="p-4">
         <Link href="/" className="flex items-center gap-2">
           <div className="flex size-8 items-center justify-center rounded-md bg-primary text-primary-foreground">
-            <CalendarClock className="size-5" />
+            <CalendarClock className="size-4" />
           </div>
           <span className="text-lg font-semibold group-data-[collapsible=icon]:hidden">
             RemindFlow
@@ -97,19 +97,11 @@ export function AppSidebar() {
         </Link>
       </SidebarHeader>
 
-      <SidebarContent>
-        <SidebarGroup className="group-data-[collapsible=icon]:hidden">
-          <div className="relative px-2">
-            <Search className="absolute left-4 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-            <SidebarInput placeholder="Search..." className="pl-8" />
-          </div>
-        </SidebarGroup>
+         <SidebarSeparator className="group-data-[collapsible=icon]:hidden" />
 
-        <SidebarSeparator className="group-data-[collapsible=icon]:hidden" />
-
-        <SidebarGroup>
+      <SidebarContent><SidebarGroup>
           <SidebarGroupLabel>Overview</SidebarGroupLabel>
-          <SidebarGroupContent>
+          <SidebarGroupContent className='p-2'>
             <SidebarMenu>
               {mainNavItems.map((item) => (
                 <SidebarMenuItem key={item.href}>
@@ -131,7 +123,7 @@ export function AppSidebar() {
 
         <SidebarGroup>
           <SidebarGroupLabel>Management</SidebarGroupLabel>
-          <SidebarGroupContent>
+          <SidebarGroupContent className='p-2'>
             <SidebarMenu>
               {managementNavItems.map((item) => (
                 <SidebarMenuItem key={item.href}>

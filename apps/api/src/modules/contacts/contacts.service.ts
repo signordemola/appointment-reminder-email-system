@@ -56,4 +56,30 @@ export class ContactsService {
       },
     });
   }
+
+  findAll() {
+    return this.prisma.contact.findMany({
+      orderBy: {
+        fullName: "asc",
+      },
+    });
+  }
+
+  create(input: {
+    fullName: string;
+    email: string;
+    phone?: string | null;
+    timezone: string;
+    emailOptOut: boolean;
+  }) {
+    return this.prisma.contact.create({
+      data: {
+        fullName: input.fullName,
+        email: input.email,
+        phone: input.phone ?? null,
+        timezone: input.timezone,
+        emailOptOut: input.emailOptOut,
+      },
+    });
+  }
 }

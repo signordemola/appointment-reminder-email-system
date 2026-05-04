@@ -135,6 +135,83 @@ export class DashboardService {
       };
     });
 
+    const upcomingToday = await this.prisma.appointment.findMany({
+      where: {
+        startsAtUtc: {
+          gte: startOfTodayUtc,
+          lt: startOfTomorrowUtc,
+        },
+      },
+      include: { contact: true },
+      orderBy: { startsAtUtc: "asc" },
+    });
+
+    const recentEvents = await this.prisma.reminderEvent.findMany({
+      where: {
+        processedAt: {
+          gte: new Date(now.getTime() - 24 * 60 * 60 * 1000),
+        },
+        status: {
+          in: ["sent", "delivered", "opened", "clicked", "failed", "bounced"],
+        },
+      },
+      include: { appointment: { include: { contact: true } } },
+      orderBy: { processedAt: "desc" },
+      take: 10,
+    });
+
+    const weeklyAppointmentRows = await this.prisma.$queryRaw<
+      Array<{
+        day: Date;
+        scheduled: bigint | number;
+        confirmed: bigint | number;
+        cancelled: bigint | number;
+        no_show: bigint | number;
+        reschedule_requested: bigint | number;
+      }>
+    >`
+      SELECT
+        date_trunc('day', "startsAtUtc") AS day,
+        COUNT(*) FILTER (WHERE status = 'scheduled') AS scheduled,
+        COUNT(*) FILTER (WHERE status = 'confirmed') AS confirmed,
+        COUNT(*) FILTER (WHERE status = 'canceled') AS cancelled,
+        COUNT(*) FILTER (WHERE status = 'no_show') AS no_show,
+        COUNT(*) FILTER (WHERE status = 'reschedule_requested') AS reschedule_requested
+      FROM "Appointment"
+      WHERE "startsAtUtc" >= ${sevenDaysAgoUtc}
+        AND "startsAtUtc" < ${startOfTomorrowUtc}
+      GROUP BY 1
+      ORDER BY 1 ASC
+    `;
+
+    const weeklyLookup = new Map(
+      weeklyAppointmentRows.map((row) => [
+        row.day.toISOString().slice(0, 10),
+        {
+          scheduled: Number(row.scheduled),
+          confirmed: Number(row.confirmed),
+          cancelled: Number(row.cancelled),
+          noShow: Number(row.no_show),
+          rescheduleRequested: Number(row.reschedule_requested),
+        },
+      ]),
+    );
+
+    const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+    const weeklyBreakdown = Array.from({ length: 7 }, (_, index) => {
+      const day = new Date(sevenDaysAgoUtc.getTime() + index * 24 * 60 * 60 * 1000);
+      const key = day.toISOString().slice(0, 10);
+      const values = weeklyLookup.get(key);
+
+      return {
+        day: dayNames[day.getDay()],
+        confirmed: values?.confirmed ?? 0,
+        pending: (values?.scheduled ?? 0) + (values?.rescheduleRequested ?? 0),
+        cancelled: values?.cancelled ?? 0,
+        noShow: values?.noShow ?? 0,
+      };
+    });
+
     return {
       generatedAt: now.toISOString(),
       metrics: {
@@ -149,6 +226,9 @@ export class DashboardService {
         bounceCount,
       },
       reminderActivity,
+      upcomingToday,
+      recentEvents,
+      weeklyBreakdown,
     };
   }
 }

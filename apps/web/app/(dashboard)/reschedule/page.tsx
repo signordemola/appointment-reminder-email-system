@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import {
   Calendar,
   Check,
@@ -37,6 +37,9 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { cn } from '@/lib/utils'
+import { useRescheduleRequests, useReviewRescheduleRequest, type RescheduleRequest as ApiRescheduleRequest } from '@/lib/hooks/use-reschedule'
+import { Skeleton } from '@/components/ui/skeleton'
+import { toast } from 'sonner'
 
 interface RescheduleRequest {
   id: string
@@ -59,81 +62,6 @@ interface RescheduleRequest {
   adminNotes?: string
 }
 
-const rescheduleRequests: RescheduleRequest[] = [
-  {
-    id: '1',
-    client: { name: 'David Kim', email: 'david@example.com', phone: '+1 (555) 678-9012', avatar: null, initials: 'DK' },
-    originalAppointment: {
-      service: 'Deep Tissue Massage',
-      datetime: DateTime.now().plus({ days: 2 }).set({ hour: 14, minute: 0 }).toISO()!,
-    },
-    reason: 'Work conflict - have a meeting that was just scheduled. Would appreciate an earlier time slot if possible.',
-    preferredDates: [
-      DateTime.now().plus({ days: 2 }).set({ hour: 10, minute: 0 }).toISO()!,
-      DateTime.now().plus({ days: 3 }).set({ hour: 14, minute: 0 }).toISO()!,
-    ],
-    status: 'pending',
-    submittedAt: DateTime.now().minus({ hours: 2 }).toISO()!,
-  },
-  {
-    id: '2',
-    client: { name: 'Sarah Johnson', email: 'sarah@example.com', phone: '+1 (555) 111-2222', avatar: null, initials: 'SJ' },
-    originalAppointment: {
-      service: 'Swedish Massage',
-      datetime: DateTime.now().plus({ days: 1 }).set({ hour: 11, minute: 0 }).toISO()!,
-    },
-    reason: 'Feeling under the weather today, would like to reschedule to next week when I am feeling better.',
-    preferredDates: [
-      DateTime.now().plus({ days: 7 }).set({ hour: 11, minute: 0 }).toISO()!,
-      DateTime.now().plus({ days: 8 }).set({ hour: 14, minute: 0 }).toISO()!,
-    ],
-    status: 'pending',
-    submittedAt: DateTime.now().minus({ hours: 5 }).toISO()!,
-  },
-  {
-    id: '3',
-    client: { name: 'Mike Thompson', email: 'mike@example.com', phone: '+1 (555) 333-4444', avatar: null, initials: 'MT' },
-    originalAppointment: {
-      service: 'Hot Stone Therapy',
-      datetime: DateTime.now().plus({ days: 3 }).set({ hour: 16, minute: 0 }).toISO()!,
-    },
-    reason: 'Car trouble, need to take it to the shop that day. Any day next week works for me.',
-    preferredDates: [],
-    status: 'pending',
-    submittedAt: DateTime.now().minus({ hours: 8 }).toISO()!,
-  },
-  {
-    id: '4',
-    client: { name: 'Emma Wilson', email: 'emma@example.com', phone: '+1 (555) 123-4567', avatar: null, initials: 'EW' },
-    originalAppointment: {
-      service: 'Aromatherapy',
-      datetime: DateTime.now().minus({ days: 3 }).set({ hour: 10, minute: 0 }).toISO()!,
-    },
-    reason: 'Family emergency came up unexpectedly.',
-    preferredDates: [
-      DateTime.now().plus({ days: 1 }).set({ hour: 10, minute: 0 }).toISO()!,
-    ],
-    status: 'approved',
-    submittedAt: DateTime.now().minus({ days: 4 }).toISO()!,
-    resolvedAt: DateTime.now().minus({ days: 3, hours: 12 }).toISO()!,
-    adminNotes: 'Rescheduled to tomorrow at 10 AM as requested.',
-  },
-  {
-    id: '5',
-    client: { name: 'James Chen', email: 'james@example.com', phone: '+1 (555) 234-5678', avatar: null, initials: 'JC' },
-    originalAppointment: {
-      service: 'Sports Massage',
-      datetime: DateTime.now().minus({ days: 5 }).set({ hour: 15, minute: 0 }).toISO()!,
-    },
-    reason: 'No longer need the appointment.',
-    preferredDates: [],
-    status: 'denied',
-    submittedAt: DateTime.now().minus({ days: 6 }).toISO()!,
-    resolvedAt: DateTime.now().minus({ days: 5, hours: 6 }).toISO()!,
-    adminNotes: 'Client cancelled instead of rescheduling. Within 24-hour policy.',
-  },
-]
-
 const statusConfig = {
   pending: { label: 'Pending', className: 'bg-status-pending/10 text-status-pending border-status-pending/20' },
   approved: { label: 'Approved', className: 'bg-status-confirmed/10 text-status-confirmed border-status-confirmed/20' },
@@ -141,17 +69,99 @@ const statusConfig = {
 }
 
 export default function ReschedulePage() {
+  const [activeTab, setActiveTab] = useState('pending')
   const [selectedRequest, setSelectedRequest] = useState<RescheduleRequest | null>(null)
-  const [dialogOpen, setDialogOpen] = useState(false)
-  const [actionType, setActionType] = useState<'approve' | 'deny'>('approve')
+  const [approveDialogOpen, setApproveDialogOpen] = useState(false)
+  const [denyDialogOpen, setDenyDialogOpen] = useState(false)
+  const [newDateTime, setNewDateTime] = useState('')
+  const [denyReason, setDenyReason] = useState('')
 
+  const { data: apiRequests, isLoading, error } = useRescheduleRequests()
+  const reviewRequest = useReviewRescheduleRequest()
+
+  const mapApiRequest = (apiReq: ApiRescheduleRequest): RescheduleRequest => ({
+    id: apiReq.id,
+    client: {
+      name: apiReq.appointment.contact.fullName,
+      email: apiReq.appointment.contact.email,
+      phone: apiReq.appointment.contact.phone || '',
+      avatar: null,
+      initials: apiReq.appointment.contact.fullName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2),
+    },
+    originalAppointment: {
+      service: apiReq.appointment.title,
+      datetime: apiReq.appointment.startsAtUtc,
+    },
+    reason: apiReq.reason,
+    preferredDates: [],
+    status: apiReq.status === 'accepted' ? 'approved' : apiReq.status === 'dismissed' ? 'denied' : 'pending',
+    submittedAt: apiReq.createdAt,
+    adminNotes: apiReq.adminNotes || undefined,
+  })
+
+  const rescheduleRequests = useMemo(() => apiRequests?.map(mapApiRequest) ?? [], [apiRequests])
   const pendingRequests = rescheduleRequests.filter(r => r.status === 'pending')
   const resolvedRequests = rescheduleRequests.filter(r => r.status !== 'pending')
 
+  const handleApprove = async () => {
+    if (!selectedRequest || !newDateTime) return
+    try {
+      await reviewRequest.mutateAsync({
+        id: selectedRequest.id,
+        decision: 'accept',
+        reviewedBy: 'admin',
+        preferredStartAtUtc: DateTime.fromISO(newDateTime).toUTC().toISO() ?? undefined,
+        preferredTimezone: selectedRequest.originalAppointment.datetime ? DateTime.fromISO(selectedRequest.originalAppointment.datetime).zoneName ?? undefined : undefined,
+      })
+      toast.success('Request approved successfully')
+      setApproveDialogOpen(false)
+      setNewDateTime('')
+      setSelectedRequest(null)
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to approve request')
+    }
+  }
+
+  const handleDeny = async () => {
+    if (!selectedRequest) return
+    try {
+      await reviewRequest.mutateAsync({
+        id: selectedRequest.id,
+        decision: 'dismiss',
+        reviewedBy: 'admin',
+      })
+      toast.success('Request denied')
+      setDenyDialogOpen(false)
+      setDenyReason('')
+      setSelectedRequest(null)
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to deny request')
+    }
+  }
+
+  if (error) {
+    return (
+      <>
+        <Header title="Reschedule Requests" breadcrumbs={[{ label: 'Dashboard', href: '/' }, { label: 'Reschedule Requests' }]} />
+        <div className="flex flex-1 flex-col gap-6 p-6">
+          <Card>
+            <CardContent className="p-6">
+              <p className="text-destructive">Failed to load reschedule requests.</p>
+              <p className="text-sm text-muted-foreground">{error.message}</p>
+            </CardContent>
+          </Card>
+        </div>
+      </>
+    )
+  }
+
   const handleAction = (request: RescheduleRequest, action: 'approve' | 'deny') => {
     setSelectedRequest(request)
-    setActionType(action)
-    setDialogOpen(true)
+    if (action === 'approve') {
+      setApproveDialogOpen(true)
+    } else {
+      setDenyDialogOpen(true)
+    }
   }
 
   return (
@@ -167,49 +177,63 @@ export default function ReschedulePage() {
       <div className="flex flex-1 flex-col gap-6 p-6">
         {/* Stats */}
         <div className="grid gap-4 sm:grid-cols-3">
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-2xl font-bold text-status-pending">{pendingRequests.length}</p>
-                  <p className="text-sm text-muted-foreground">Pending Review</p>
-                </div>
-                <div className="flex size-10 items-center justify-center rounded-lg bg-status-pending/10">
-                  <Clock className="size-5 text-status-pending" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-2xl font-bold">
-                    {resolvedRequests.filter(r => r.status === 'approved').length}
-                  </p>
-                  <p className="text-sm text-muted-foreground">Approved This Week</p>
-                </div>
-                <div className="flex size-10 items-center justify-center rounded-lg bg-status-confirmed/10">
-                  <Check className="size-5 text-status-confirmed" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-2xl font-bold">
-                    {resolvedRequests.filter(r => r.status === 'denied').length}
-                  </p>
-                  <p className="text-sm text-muted-foreground">Denied This Week</p>
-                </div>
-                <div className="flex size-10 items-center justify-center rounded-lg bg-status-cancelled/10">
-                  <X className="size-5 text-status-cancelled" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+          {isLoading ? (
+            Array.from({ length: 3 }).map((_, i) => (
+              <Card key={i}>
+                <CardContent className="p-6 space-y-4">
+                  <Skeleton className="size-10 rounded-lg" />
+                  <Skeleton className="h-8 w-12" />
+                  <Skeleton className="h-4 w-24" />
+                </CardContent>
+              </Card>
+            ))
+          ) : (
+            <>
+              <Card>
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-2xl font-bold text-status-pending">{pendingRequests.length}</p>
+                      <p className="text-sm text-muted-foreground">Pending Review</p>
+                    </div>
+                    <div className="flex size-10 items-center justify-center rounded-lg bg-status-pending/10">
+                      <Clock className="size-5 text-status-pending" />
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-2xl font-bold">
+                        {resolvedRequests.filter(r => r.status === 'approved').length}
+                      </p>
+                      <p className="text-sm text-muted-foreground">Approved This Week</p>
+                    </div>
+                    <div className="flex size-10 items-center justify-center rounded-lg bg-status-confirmed/10">
+                      <Check className="size-5 text-status-confirmed" />
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-2xl font-bold">
+                        {resolvedRequests.filter(r => r.status === 'denied').length}
+                      </p>
+                      <p className="text-sm text-muted-foreground">Denied This Week</p>
+                    </div>
+                    <div className="flex size-10 items-center justify-center rounded-lg bg-status-cancelled/10">
+                      <X className="size-5 text-status-cancelled" />
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </>
+          )}
         </div>
 
         <Tabs defaultValue="pending" className="flex-1">
@@ -227,7 +251,22 @@ export default function ReschedulePage() {
 
           <TabsContent value="pending" className="mt-4">
             <div className="space-y-4">
-              {pendingRequests.length === 0 ? (
+              {isLoading ? (
+                Array.from({ length: 3 }).map((_, i) => (
+                  <Card key={i}>
+                    <CardContent className="p-6">
+                      <div className="flex items-start gap-4">
+                        <Skeleton className="size-12 rounded-full" />
+                        <div className="flex-1 space-y-2">
+                          <Skeleton className="h-4 w-32" />
+                          <Skeleton className="h-3 w-48" />
+                          <Skeleton className="h-16 w-full" />
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))
+              ) : pendingRequests.length === 0 ? (
                 <Card>
                   <CardContent className="flex flex-col items-center justify-center py-12">
                     <div className="flex size-12 items-center justify-center rounded-full bg-muted">
@@ -343,95 +382,135 @@ export default function ReschedulePage() {
 
           <TabsContent value="resolved" className="mt-4">
             <div className="space-y-4">
-              {resolvedRequests.map((request) => (
-                <Card key={request.id} className="opacity-75">
-                  <CardContent className="p-6">
-                    <div className="flex items-start gap-4">
-                      <Avatar className="size-10">
-                        <AvatarImage src={request.client.avatar ?? undefined} />
-                        <AvatarFallback className="bg-primary/10 text-primary text-sm">
-                          {request.client.initials}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div className="flex-1">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <p className="font-medium">{request.client.name}</p>
-                          <Badge variant="outline" className={statusConfig[request.status].className}>
-                            {statusConfig[request.status].label}
-                          </Badge>
+              {isLoading ? (
+                Array.from({ length: 3 }).map((_, i) => (
+                  <Card key={i} className="opacity-75">
+                    <CardContent className="p-6">
+                      <div className="flex items-start gap-4">
+                        <Skeleton className="size-10 rounded-full" />
+                        <div className="flex-1 space-y-2">
+                          <Skeleton className="h-4 w-32" />
+                          <Skeleton className="h-3 w-48" />
+                          <Skeleton className="h-4 w-full" />
                         </div>
-                        <p className="text-sm text-muted-foreground">
-                          {request.originalAppointment.service} — {' '}
-                          {DateTime.fromISO(request.originalAppointment.datetime).toFormat('MMM d, h:mm a')}
-                        </p>
-                        {request.adminNotes && (
-                          <p className="mt-2 text-sm text-muted-foreground italic">
-                            Note: {request.adminNotes}
-                          </p>
-                        )}
-                        <p className="mt-1 text-xs text-muted-foreground">
-                          Resolved {DateTime.fromISO(request.resolvedAt!).toRelative()}
-                        </p>
                       </div>
-                    </div>
+                    </CardContent>
+                  </Card>
+                ))
+              ) : resolvedRequests.length === 0 ? (
+                <Card>
+                  <CardContent className="flex flex-col items-center justify-center py-12">
+                    <p className="text-sm text-muted-foreground">No resolved requests yet.</p>
                   </CardContent>
                 </Card>
-              ))}
+              ) : (
+                resolvedRequests.map((request) => (
+                  <Card key={request.id} className="opacity-75">
+                    <CardContent className="p-6">
+                      <div className="flex items-start gap-4">
+                        <Avatar className="size-10">
+                          <AvatarImage src={request.client.avatar ?? undefined} />
+                          <AvatarFallback className="bg-primary/10 text-primary text-sm">
+                            {request.client.initials}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="flex-1">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <p className="font-medium">{request.client.name}</p>
+                            <Badge variant="outline" className={statusConfig[request.status].className}>
+                              {statusConfig[request.status].label}
+                            </Badge>
+                          </div>
+                          <p className="text-sm text-muted-foreground">
+                            {request.originalAppointment.service} — {' '}
+                            {DateTime.fromISO(request.originalAppointment.datetime).toFormat('MMM d, h:mm a')}
+                          </p>
+                          {request.adminNotes && (
+                            <p className="mt-2 text-sm text-muted-foreground italic">
+                              Note: {request.adminNotes}
+                            </p>
+                          )}
+                          <p className="mt-1 text-xs text-muted-foreground">
+                            Resolved {DateTime.fromISO(request.resolvedAt!).toRelative()}
+                          </p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))
+              )}
             </div>
           </TabsContent>
         </Tabs>
       </div>
 
-      {/* Action Dialog */}
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+      {/* Approve Dialog */}
+      <Dialog open={approveDialogOpen} onOpenChange={setApproveDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>
-              {actionType === 'approve' ? 'Approve Reschedule' : 'Deny Request'}
-            </DialogTitle>
+            <DialogTitle>Approve Reschedule</DialogTitle>
             <DialogDescription>
-              {actionType === 'approve'
-                ? `Select a new time for ${selectedRequest?.client.name}'s appointment.`
-                : `Add a note explaining why this request is being denied.`}
+              {selectedRequest && `Select a new time for ${selectedRequest.client.name}'s appointment.`}
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
-            {actionType === 'approve' && (
-              <div className="grid grid-cols-2 gap-4">
-                <div className="grid gap-2">
-                  <Label htmlFor="new-date">New Date</Label>
-                  <Input type="date" id="new-date" />
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="new-time">New Time</Label>
-                  <Input type="time" id="new-time" />
-                </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-2">
+                <Label htmlFor="new-date">New Date</Label>
+                <Input type="date" id="new-date" value={newDateTime.split('T')[0]} onChange={(e) => setNewDateTime(e.target.value + 'T' + (newDateTime.split('T')[1] || '09:00'))} />
               </div>
-            )}
+              <div className="grid gap-2">
+                <Label htmlFor="new-time">New Time</Label>
+                <Input type="time" id="new-time" value={newDateTime.split('T')[1] || ''} onChange={(e) => setNewDateTime((newDateTime.split('T')[0] || new Date().toISOString().split('T')[0]) + 'T' + e.target.value)} />
+              </div>
+            </div>
             <div className="grid gap-2">
-              <Label htmlFor="notes">
-                {actionType === 'approve' ? 'Notes (optional)' : 'Reason'}
-              </Label>
+              <Label htmlFor="notes">Notes (optional)</Label>
               <Textarea
                 id="notes"
-                placeholder={
-                  actionType === 'approve'
-                    ? 'Add any notes about this reschedule...'
-                    : 'Explain why this request is being denied...'
-                }
+                placeholder="Add any notes about this reschedule..."
                 rows={3}
               />
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDialogOpen(false)}>
+            <Button variant="outline" onClick={() => setApproveDialogOpen(false)}>
               Cancel
             </Button>
-            <Button
-              onClick={() => setDialogOpen(false)}
-              variant={actionType === 'deny' ? 'destructive' : 'default'}
-            >
-              {actionType === 'approve' ? 'Approve & Notify' : 'Deny Request'}
+            <Button onClick={handleApprove} disabled={reviewRequest.isPending}>
+              {reviewRequest.isPending ? 'Approving...' : 'Approve & Notify'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Deny Dialog */}
+      <Dialog open={denyDialogOpen} onOpenChange={setDenyDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Deny Request</DialogTitle>
+            <DialogDescription>
+              Add a note explaining why this request is being denied.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="deny-reason">Reason</Label>
+              <Textarea
+                id="deny-reason"
+                placeholder="Explain why this request is being denied..."
+                rows={3}
+                value={denyReason}
+                onChange={(e) => setDenyReason(e.target.value)}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDenyDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleDeny} variant="destructive" disabled={reviewRequest.isPending}>
+              {reviewRequest.isPending ? 'Denying...' : 'Deny Request'}
             </Button>
           </DialogFooter>
         </DialogContent>

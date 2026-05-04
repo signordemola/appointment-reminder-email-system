@@ -1,6 +1,9 @@
 'use client'
 
 import { useState, useMemo } from 'react'
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import * as z from 'zod'
 import {
   useReactTable,
   getCoreRowModel,
@@ -74,8 +77,22 @@ import {
 import { Label } from '@/components/ui/label'
 import { Checkbox } from '@/components/ui/checkbox'
 import { cn } from '@/lib/utils'
+import { useAppointments, useCreateAppointment, type Appointment as ApiAppointment } from '@/lib/hooks/use-appointments'
+import { useContacts } from '@/lib/hooks/use-contacts'
+import { Skeleton } from '@/components/ui/skeleton'
+import { toast } from 'sonner'
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 
-// Types
+const appointmentFormSchema = z.object({
+  clientId: z.string().min(1, 'Please select a client'),
+  service: z.string().min(1, 'Please select a service'),
+  date: z.string().min(1, 'Please select a date'),
+  time: z.string().min(1, 'Please select a time'),
+})
+
+type AppointmentFormValues = z.infer<typeof appointmentFormSchema>
+
+// Types - extending from API
 interface Appointment {
   id: string
   client: {
@@ -93,99 +110,32 @@ interface Appointment {
   notes?: string
 }
 
-// Mock data
-const appointments: Appointment[] = [
-  {
-    id: '1',
-    client: { name: 'Emma Wilson', email: 'emma@example.com', phone: '+1 (555) 123-4567', avatar: null, initials: 'EW' },
-    service: 'Deep Tissue Massage',
-    datetime: DateTime.now().plus({ hours: 2 }).toISO()!,
-    duration: 60,
-    status: 'confirmed',
-    remindersSent: 2,
-  },
-  {
-    id: '2',
-    client: { name: 'James Chen', email: 'james@example.com', phone: '+1 (555) 234-5678', avatar: null, initials: 'JC' },
-    service: 'Swedish Massage',
-    datetime: DateTime.now().plus({ hours: 4 }).toISO()!,
-    duration: 90,
-    status: 'scheduled',
-    remindersSent: 1,
-  },
-  {
-    id: '3',
-    client: { name: 'Olivia Martinez', email: 'olivia@example.com', phone: '+1 (555) 345-6789', avatar: null, initials: 'OM' },
-    service: 'Hot Stone Therapy',
-    datetime: DateTime.now().plus({ days: 1 }).toISO()!,
-    duration: 75,
-    status: 'confirmed',
-    remindersSent: 1,
-  },
-  {
-    id: '4',
-    client: { name: 'Michael Brown', email: 'michael@example.com', phone: '+1 (555) 456-7890', avatar: null, initials: 'MB' },
-    service: 'Sports Massage',
-    datetime: DateTime.now().plus({ days: 1, hours: 3 }).toISO()!,
-    duration: 60,
-    status: 'scheduled',
-    remindersSent: 0,
-  },
-  {
-    id: '5',
-    client: { name: 'Sophie Taylor', email: 'sophie@example.com', phone: '+1 (555) 567-8901', avatar: null, initials: 'ST' },
-    service: 'Aromatherapy',
-    datetime: DateTime.now().plus({ days: 2 }).toISO()!,
-    duration: 60,
-    status: 'confirmed',
-    remindersSent: 2,
-  },
-  {
-    id: '6',
-    client: { name: 'David Kim', email: 'david@example.com', phone: '+1 (555) 678-9012', avatar: null, initials: 'DK' },
-    service: 'Prenatal Massage',
-    datetime: DateTime.now().minus({ days: 1 }).toISO()!,
-    duration: 60,
-    status: 'completed',
-    remindersSent: 3,
-  },
-  {
-    id: '7',
-    client: { name: 'Lisa Anderson', email: 'lisa@example.com', phone: '+1 (555) 789-0123', avatar: null, initials: 'LA' },
-    service: 'Reflexology',
-    datetime: DateTime.now().minus({ days: 1 }).toISO()!,
-    duration: 45,
-    status: 'no-show',
-    remindersSent: 3,
-  },
-  {
-    id: '8',
-    client: { name: 'Ryan Garcia', email: 'ryan@example.com', phone: '+1 (555) 890-1234', avatar: null, initials: 'RG' },
-    service: 'Deep Tissue Massage',
-    datetime: DateTime.now().plus({ days: 3 }).toISO()!,
-    duration: 90,
-    status: 'rescheduled',
-    remindersSent: 1,
-  },
-  {
-    id: '9',
-    client: { name: 'Jennifer Lee', email: 'jennifer@example.com', phone: '+1 (555) 901-2345', avatar: null, initials: 'JL' },
-    service: 'Swedish Massage',
-    datetime: DateTime.now().minus({ days: 2 }).toISO()!,
-    duration: 60,
-    status: 'cancelled',
-    remindersSent: 2,
-  },
-  {
-    id: '10',
-    client: { name: 'Chris Thompson', email: 'chris@example.com', phone: '+1 (555) 012-3456', avatar: null, initials: 'CT' },
-    service: 'Hot Stone Therapy',
-    datetime: DateTime.now().plus({ days: 4 }).toISO()!,
-    duration: 75,
-    status: 'scheduled',
-    remindersSent: 0,
-  },
-]
+// Map API appointment to table format
+function mapApiAppointment(apiAppt: ApiAppointment): Appointment {
+  const duration = apiAppt.endsAtUtc
+    ? Math.round((new Date(apiAppt.endsAtUtc).getTime() - new Date(apiAppt.startsAtUtc).getTime()) / 60000)
+    : 60
+  
+  const sentReminders = apiAppt.reminderEvents?.filter(e => 
+    e.status === 'sent' || e.status === 'delivered' || e.status === 'opened' || e.status === 'clicked'
+  ).length ?? 0
+
+  return {
+    id: apiAppt.id,
+    client: {
+      name: apiAppt.contact.fullName,
+      email: apiAppt.contact.email,
+      phone: apiAppt.contact.phone || '',
+      avatar: null,
+      initials: apiAppt.contact.fullName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2),
+    },
+    service: apiAppt.title,
+    datetime: apiAppt.startsAtUtc,
+    duration,
+    status: (apiAppt.status === 'no_show' ? 'no-show' : apiAppt.status) as Appointment['status'],
+    remindersSent: sentReminders,
+  }
+}
 
 const statusConfig: Record<Appointment['status'], { label: string; className: string }> = {
   scheduled: { label: 'Scheduled', className: 'bg-muted text-muted-foreground' },
@@ -214,11 +164,86 @@ export default function AppointmentsPage() {
   const [globalFilter, setGlobalFilter] = useState('')
   const [statusFilter, setStatusFilter] = useState<string>('all')
   const [rowSelection, setRowSelection] = useState({})
+  const [dialogOpen, setDialogOpen] = useState(false)
+
+  const form = useForm<AppointmentFormValues>({
+    resolver: zodResolver(appointmentFormSchema),
+    defaultValues: {
+      clientId: '',
+      service: '',
+      date: '',
+      time: '',
+    },
+  })
+
+  const { data, isLoading, error } = useAppointments({ 
+    page: 1, 
+    pageSize: 100,
+    status: statusFilter === 'all' ? undefined : statusFilter 
+  })
+  const { data: contactsData } = useContacts()
+  const createAppointment = useCreateAppointment()
+
+  const appointments = useMemo(() => {
+    return data?.items.map(mapApiAppointment) ?? []
+  }, [data])
 
   const filteredData = useMemo(() => {
-    if (statusFilter === 'all') return appointments
-    return appointments.filter((a) => a.status === statusFilter)
-  }, [statusFilter])
+    if (!globalFilter) return appointments
+    const search = globalFilter.toLowerCase()
+    return appointments.filter((a) =>
+      a.client.name.toLowerCase().includes(search) ||
+      a.client.email.toLowerCase().includes(search) ||
+      a.service.toLowerCase().includes(search)
+    )
+  }, [appointments, globalFilter])
+
+  const handleCreateAppointment = async (values: AppointmentFormValues) => {
+    const contact = contactsData?.find(c => c.id === values.clientId)
+    if (!contact) {
+      toast.error('Selected client not found')
+      return
+    }
+
+    const startsAt = DateTime.fromISO(`${values.date}T${values.time}`)
+    const duration = values.service.includes('90') ? 90 : values.service.includes('75') ? 75 : 60
+    const endsAt = startsAt.plus({ minutes: duration })
+
+    try {
+      await createAppointment.mutateAsync({
+        fullName: contact.fullName,
+        email: contact.email,
+        phone: contact.phone,
+        contactTimezone: contact.timezone,
+        emailOptOut: contact.emailOptOut,
+        title: values.service.split('(')[0].trim(),
+        startsAtUtc: startsAt.toUTC().toISO() || '',
+        endsAtUtc: endsAt.toUTC().toISO() || '',
+        displayTimezone: contact.timezone,
+      })
+      toast.success('Appointment created successfully')
+      setDialogOpen(false)
+      form.reset()
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to create appointment')
+    }
+  }
+
+  if (error) {
+    return (
+      <>
+        <Header title="Appointments" breadcrumbs={[{ label: 'Dashboard', href: '/' }, { label: 'Appointments' }]} />
+        <div className="flex flex-1 flex-col gap-4 p-6">
+          <Card>
+            <CardContent className="p-6">
+              <p className="text-destructive">Failed to load appointments.</p>
+              <p className="text-sm text-muted-foreground">{error.message}</p>
+            </CardContent>
+          </Card>
+        </div>
+      </>
+    )
+  }
 
   const columns: ColumnDef<Appointment>[] = useMemo(
     () => [
@@ -410,7 +435,7 @@ export default function AppointmentsPage() {
               <Upload className="mr-2 size-4" />
               Import
             </Button>
-            <Dialog>
+            <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
               <DialogTrigger asChild>
                 <Button size="sm">
                   <Plus className="mr-2 size-4" />
@@ -418,55 +443,97 @@ export default function AppointmentsPage() {
                   <span className="sm:hidden">New</span>
                 </Button>
               </DialogTrigger>
-              <DialogContent className="sm:max-w-md">
-                <DialogHeader>
-                  <DialogTitle>Create Appointment</DialogTitle>
-                  <DialogDescription>
-                    Schedule a new appointment for a client.
-                  </DialogDescription>
-                </DialogHeader>
-                <div className="grid gap-4 py-4">
-                  <div className="grid gap-2">
-                    <Label htmlFor="client">Client</Label>
-                    <Select>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select a client" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="emma">Emma Wilson</SelectItem>
-                        <SelectItem value="james">James Chen</SelectItem>
-                        <SelectItem value="olivia">Olivia Martinez</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="service">Service</Label>
-                    <Select>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select a service" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="deep-tissue">Deep Tissue Massage (60 min)</SelectItem>
-                        <SelectItem value="swedish">Swedish Massage (90 min)</SelectItem>
-                        <SelectItem value="hot-stone">Hot Stone Therapy (75 min)</SelectItem>
-                        <SelectItem value="sports">Sports Massage (60 min)</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="grid gap-2">
-                      <Label htmlFor="date">Date</Label>
-                      <Input type="date" id="date" />
+              <DialogContent>
+                <Form {...form}>
+                  <form onSubmit={form.handleSubmit(handleCreateAppointment)}>
+                    <DialogHeader>
+                      <DialogTitle>Create New Appointment</DialogTitle>
+                      <DialogDescription>
+                        Schedule a new appointment for a client.
+                      </DialogDescription>
+                    </DialogHeader>
+                    <div className="grid gap-4 py-4">
+                      <FormField
+                        control={form.control}
+                        name="clientId"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Client</FormLabel>
+                            <FormControl>
+                              <Select value={field.value} onValueChange={field.onChange}>
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Select a client" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {contactsData?.map(contact => (
+                                    <SelectItem key={contact.id} value={contact.id}>{contact.fullName}</SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="service"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Service</FormLabel>
+                            <FormControl>
+                              <Select value={field.value} onValueChange={field.onChange}>
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Select a service" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="Deep Tissue Massage (60 min)">Deep Tissue Massage (60 min)</SelectItem>
+                                  <SelectItem value="Swedish Massage (90 min)">Swedish Massage (90 min)</SelectItem>
+                                  <SelectItem value="Hot Stone Therapy (75 min)">Hot Stone Therapy (75 min)</SelectItem>
+                                  <SelectItem value="Sports Massage (60 min)">Sports Massage (60 min)</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <div className="grid grid-cols-2 gap-4">
+                        <FormField
+                          control={form.control}
+                          name="date"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Date</FormLabel>
+                              <FormControl>
+                                <Input type="date" {...field} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={form.control}
+                          name="time"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Time</FormLabel>
+                              <FormControl>
+                                <Input type="time" {...field} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
                     </div>
-                    <div className="grid gap-2">
-                      <Label htmlFor="time">Time</Label>
-                      <Input type="time" id="time" />
-                    </div>
-                  </div>
-                </div>
-                <DialogFooter>
-                  <Button type="submit">Create Appointment</Button>
-                </DialogFooter>
+                    <DialogFooter>
+                      <Button type="submit" disabled={createAppointment.isPending}>
+                        {createAppointment.isPending ? 'Creating...' : 'Create Appointment'}
+                      </Button>
+                    </DialogFooter>
+                  </form>
+                </Form>
               </DialogContent>
             </Dialog>
           </div>
@@ -536,7 +603,42 @@ export default function AppointmentsPage() {
                   ))}
                 </TableHeader>
                 <TableBody>
-                  {table.getRowModel().rows?.length ? (
+                  {isLoading ? (
+                    Array.from({ length: 5 }).map((_, i) => (
+                      <TableRow key={i}>
+                        <TableCell><Skeleton className="h-4 w-4" /></TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-3">
+                            <Skeleton className="size-8 rounded-full" />
+                            <div className="space-y-1">
+                              <Skeleton className="h-4 w-24" />
+                              <Skeleton className="h-3 w-32" />
+                            </div>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="space-y-1">
+                            <Skeleton className="h-4 w-32" />
+                            <Skeleton className="h-3 w-12" />
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="space-y-1">
+                            <Skeleton className="h-4 w-16" />
+                            <Skeleton className="h-3 w-12" />
+                          </div>
+                        </TableCell>
+                        <TableCell><Skeleton className="h-6 w-20" /></TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-1">
+                            <Skeleton className="size-3" />
+                            <Skeleton className="h-4 w-4" />
+                          </div>
+                        </TableCell>
+                        <TableCell><Skeleton className="h-8 w-8" /></TableCell>
+                      </TableRow>
+                    ))
+                  ) : table.getRowModel().rows?.length ? (
                     table.getRowModel().rows.map((row) => (
                       <TableRow
                         key={row.id}

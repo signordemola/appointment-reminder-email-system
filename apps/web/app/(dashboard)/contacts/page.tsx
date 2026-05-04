@@ -1,6 +1,9 @@
 'use client'
 
 import { useState, useMemo } from 'react'
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import * as z from 'zod'
 import {
   useReactTable,
   getCoreRowModel,
@@ -61,8 +64,20 @@ import {
 } from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
 import { Checkbox } from '@/components/ui/checkbox'
+import { Skeleton } from '@/components/ui/skeleton'
+import { useContacts, useCreateContact, type Contact as ApiContact } from '@/lib/hooks/use-contacts'
+import { toast } from 'sonner'
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 
-interface Contact {
+const contactFormSchema = z.object({
+  fullName: z.string().min(1, 'Name is required'),
+  email: z.string().email('Invalid email address'),
+  phone: z.string().optional(),
+})
+
+type ContactFormValues = z.infer<typeof contactFormSchema>
+
+interface ContactTableRow {
   id: string
   name: string
   email: string
@@ -75,23 +90,77 @@ interface Contact {
   createdAt: string
 }
 
-const contacts: Contact[] = [
-  { id: '1', name: 'Emma Wilson', email: 'emma@example.com', phone: '+1 (555) 123-4567', avatar: null, initials: 'EW', totalAppointments: 12, lastVisit: DateTime.now().minus({ days: 5 }).toISO()!, status: 'active', createdAt: DateTime.now().minus({ months: 6 }).toISO()! },
-  { id: '2', name: 'James Chen', email: 'james@example.com', phone: '+1 (555) 234-5678', avatar: null, initials: 'JC', totalAppointments: 8, lastVisit: DateTime.now().minus({ days: 12 }).toISO()!, status: 'active', createdAt: DateTime.now().minus({ months: 4 }).toISO()! },
-  { id: '3', name: 'Olivia Martinez', email: 'olivia@example.com', phone: '+1 (555) 345-6789', avatar: null, initials: 'OM', totalAppointments: 15, lastVisit: DateTime.now().minus({ days: 3 }).toISO()!, status: 'active', createdAt: DateTime.now().minus({ months: 8 }).toISO()! },
-  { id: '4', name: 'Michael Brown', email: 'michael@example.com', phone: '+1 (555) 456-7890', avatar: null, initials: 'MB', totalAppointments: 5, lastVisit: DateTime.now().minus({ days: 20 }).toISO()!, status: 'active', createdAt: DateTime.now().minus({ months: 3 }).toISO()! },
-  { id: '5', name: 'Sophie Taylor', email: 'sophie@example.com', phone: '+1 (555) 567-8901', avatar: null, initials: 'ST', totalAppointments: 22, lastVisit: DateTime.now().minus({ days: 1 }).toISO()!, status: 'active', createdAt: DateTime.now().minus({ years: 1 }).toISO()! },
-  { id: '6', name: 'David Kim', email: 'david@example.com', phone: '+1 (555) 678-9012', avatar: null, initials: 'DK', totalAppointments: 3, lastVisit: DateTime.now().minus({ days: 45 }).toISO()!, status: 'inactive', createdAt: DateTime.now().minus({ months: 2 }).toISO()! },
-  { id: '7', name: 'Lisa Anderson', email: 'lisa@example.com', phone: '+1 (555) 789-0123', avatar: null, initials: 'LA', totalAppointments: 7, lastVisit: DateTime.now().minus({ days: 30 }).toISO()!, status: 'active', createdAt: DateTime.now().minus({ months: 5 }).toISO()! },
-  { id: '8', name: 'Ryan Garcia', email: 'ryan@example.com', phone: '+1 (555) 890-1234', avatar: null, initials: 'RG', totalAppointments: 1, lastVisit: null, status: 'active', createdAt: DateTime.now().minus({ weeks: 1 }).toISO()! },
-]
+function mapApiContact(apiContact: ApiContact): ContactTableRow {
+  return {
+    id: apiContact.id,
+    name: apiContact.fullName,
+    email: apiContact.email,
+    phone: apiContact.phone || '',
+    avatar: null,
+    initials: apiContact.fullName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2),
+    totalAppointments: 0, // Would need API aggregation
+    lastVisit: null, // Would need API aggregation
+    status: apiContact.emailOptOut ? 'inactive' : 'active',
+    createdAt: apiContact.createdAt,
+  }
+}
 
 export default function ContactsPage() {
   const [sorting, setSorting] = useState<SortingState>([])
   const [globalFilter, setGlobalFilter] = useState('')
   const [rowSelection, setRowSelection] = useState({})
+  const [dialogOpen, setDialogOpen] = useState(false)
 
-  const columns: ColumnDef<Contact>[] = useMemo(
+  const { data: apiContacts, isLoading, error } = useContacts()
+  const createContact = useCreateContact()
+
+  const form = useForm<ContactFormValues>({
+    resolver: zodResolver(contactFormSchema),
+    defaultValues: {
+      fullName: '',
+      email: '',
+      phone: '',
+    },
+  })
+
+  const contacts = useMemo(() => {
+    return apiContacts?.map(mapApiContact) ?? []
+  }, [apiContacts])
+
+  const handleCreateContact = async (values: ContactFormValues) => {
+    try {
+      await createContact.mutateAsync({
+        fullName: values.fullName,
+        email: values.email,
+        phone: values.phone || null,
+        timezone: 'America/New_York',
+        emailOptOut: false,
+      })
+      toast.success('Contact created successfully')
+      setDialogOpen(false)
+      form.reset()
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to create contact')
+    }
+  }
+
+  if (error) {
+    return (
+      <>
+        <Header title="Contacts" breadcrumbs={[{ label: 'Dashboard', href: '/' }, { label: 'Contacts' }]} />
+        <div className="flex flex-1 flex-col gap-4 p-6">
+          <Card>
+            <CardContent className="p-6">
+              <p className="text-destructive">Failed to load contacts.</p>
+              <p className="text-sm text-muted-foreground">{error.message}</p>
+            </CardContent>
+          </Card>
+        </div>
+      </>
+    )
+  }
+
+  const columns: ColumnDef<ContactTableRow>[] = useMemo(
     () => [
       {
         id: 'select',
@@ -248,7 +317,7 @@ export default function ContactsPage() {
               <Download className="mr-2 size-4" />
               Export
             </Button>
-            <Dialog>
+            <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
               <DialogTrigger asChild>
                 <Button size="sm">
                   <Plus className="mr-2 size-4" />
@@ -257,29 +326,62 @@ export default function ContactsPage() {
                 </Button>
               </DialogTrigger>
               <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Add New Contact</DialogTitle>
-                  <DialogDescription>
-                    Add a new client to your contact list.
-                  </DialogDescription>
-                </DialogHeader>
-                <div className="grid gap-4 py-4">
-                  <div className="grid gap-2">
-                    <Label htmlFor="name">Full Name</Label>
-                    <Input id="name" placeholder="John Doe" />
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="email">Email</Label>
-                    <Input id="email" type="email" placeholder="john@example.com" />
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="phone">Phone</Label>
-                    <Input id="phone" type="tel" placeholder="+1 (555) 000-0000" />
-                  </div>
-                </div>
-                <DialogFooter>
-                  <Button type="submit">Add Contact</Button>
-                </DialogFooter>
+                <Form {...form}>
+                  <form onSubmit={form.handleSubmit(handleCreateContact)}>
+                    <DialogHeader>
+                      <DialogTitle>Add New Contact</DialogTitle>
+                      <DialogDescription>
+                        Add a new client to your contact list.
+                      </DialogDescription>
+                    </DialogHeader>
+                    <div className="grid gap-4 py-4">
+                      <FormField
+                        control={form.control}
+                        name="fullName"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Full Name</FormLabel>
+                            <FormControl>
+                              <Input placeholder="John Doe" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="email"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Email</FormLabel>
+                            <FormControl>
+                              <Input type="email" placeholder="john@example.com" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="phone"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Phone</FormLabel>
+                            <FormControl>
+                              <Input type="tel" placeholder="+1 (555) 000-0000" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                    <DialogFooter>
+                      <Button type="submit" disabled={createContact.isPending}>
+                        {createContact.isPending ? 'Creating...' : 'Add Contact'}
+                      </Button>
+                    </DialogFooter>
+                  </form>
+                </Form>
               </DialogContent>
             </Dialog>
           </div>
@@ -321,7 +423,27 @@ export default function ContactsPage() {
                   ))}
                 </TableHeader>
                 <TableBody>
-                  {table.getRowModel().rows?.length ? (
+                  {isLoading ? (
+                    Array.from({ length: 5 }).map((_, i) => (
+                      <TableRow key={i}>
+                        <TableCell><Skeleton className="h-4 w-4" /></TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-3">
+                            <Skeleton className="size-8 rounded-full" />
+                            <div className="space-y-1">
+                              <Skeleton className="h-4 w-24" />
+                              <Skeleton className="h-3 w-32" />
+                            </div>
+                          </div>
+                        </TableCell>
+                        <TableCell><Skeleton className="h-4 w-32" /></TableCell>
+                        <TableCell><Skeleton className="h-4 w-8" /></TableCell>
+                        <TableCell><Skeleton className="h-4 w-16" /></TableCell>
+                        <TableCell><Skeleton className="h-6 w-20" /></TableCell>
+                        <TableCell><Skeleton className="h-8 w-8" /></TableCell>
+                      </TableRow>
+                    ))
+                  ) : table.getRowModel().rows?.length ? (
                     table.getRowModel().rows.map((row) => (
                       <TableRow key={row.id} data-state={row.getIsSelected() && 'selected'}>
                         {row.getVisibleCells().map((cell) => (
