@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import {
+  Calendar,
   CheckCircle2,
   Clock,
   AlertTriangle,
@@ -15,6 +16,7 @@ import {
   Phone,
   User,
 } from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
 import {
   Bar,
   BarChart,
@@ -66,6 +68,14 @@ const eventColorMap: Record<string, string> = {
   bounced: 'text-destructive',
 }
 
+// ── KPI icon map (string → component) ────────────────────────
+const kpiIconMap: Record<string, LucideIcon> = {
+  'calendar': Calendar,
+  'check-circle': CheckCircle2,
+  'clock': Clock,
+  'alert-triangle': AlertTriangle,
+}
+
 interface Props {
   data: PreparedDashboardData
 }
@@ -78,31 +88,40 @@ export function DashboardContent({ data }: Props) {
 
       {/* ── KPI Stats Grid ──────────────────────────────── */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {stats.map((stat) => (
-          <Card key={stat.title}>
+        {stats.map((stat) => {
+          const Icon = kpiIconMap[stat.icon] || Calendar
+          return (
+          <Card key={stat.title} className="card-elevated cursor-pointer">
             <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div className={cn('flex size-10 items-center justify-center rounded-lg', stat.bgColor)}>
-                  <stat.icon className={cn('size-5', stat.color)} />
+              <div className="flex items-center justify-between mb-4">
+                <div className={cn('flex size-10 items-center justify-center rounded-xl', stat.bgColor)}>
+                  <Icon className={cn('size-5', stat.color)} />
                 </div>
-                {stat.trend === 'up' && <TrendingUp className="size-4 text-status-confirmed" />}
-                {stat.trend === 'down' && <TrendingDown className="size-4 text-destructive" />}
+                {stat.trend === 'up' && (
+                  <span className="flex items-center gap-1 text-xs font-medium text-status-confirmed">
+                    <TrendingUp className="size-3" /> Up
+                  </span>
+                )}
+                {stat.trend === 'down' && (
+                  <span className="flex items-center gap-1 text-xs font-medium text-destructive">
+                    <TrendingDown className="size-3" /> Needs attention
+                  </span>
+                )}
               </div>
-              <div className="mt-4">
-                <p className="text-2xl font-bold">{stat.value}</p>
-                <p className="text-sm text-muted-foreground">{stat.title}</p>
-              </div>
+              <p className="text-3xl font-extrabold tracking-tight tabular-nums">{stat.value}</p>
+              <p className="mt-1 text-sm font-medium text-foreground/80">{stat.title}</p>
               <p className="mt-1 text-xs text-muted-foreground">{stat.change}</p>
             </CardContent>
           </Card>
-        ))}
+          )
+        })}
       </div>
 
       {/* ── Middle Row: Chart + Delivery ────────────────── */}
       <div className="grid gap-6 lg:grid-cols-7">
 
         {/* Weekly Overview Chart */}
-        <Card className="lg:col-span-4">
+        <Card className="lg:col-span-4 card-elevated">
           <CardHeader className="flex flex-row items-center justify-between">
             <div>
               <CardTitle>Weekly Overview</CardTitle>
@@ -117,45 +136,34 @@ export function DashboardContent({ data }: Props) {
           <CardContent>
             <div className="h-[280px]">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={weeklyBreakdown} barGap={4}>
-                  <CartesianGrid strokeDasharray="3 3" className="stroke-muted" vertical={false} />
+                <BarChart data={weeklyBreakdown} barGap={2} barCategoryGap="30%">
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} />
                   <XAxis
                     dataKey="day"
                     tickLine={false}
                     axisLine={false}
-                    className="text-xs fill-muted-foreground"
+                    tick={{ fill: '#6b7280', fontSize: 12 }}
                   />
                   <YAxis
                     tickLine={false}
                     axisLine={false}
-                    className="text-xs fill-muted-foreground"
+                    tick={{ fill: '#6b7280', fontSize: 12 }}
+                    width={32}
                   />
                   <Tooltip
                     contentStyle={{
-                      backgroundColor: 'hsl(var(--card))',
-                      border: '1px solid hsl(var(--border))',
+                      backgroundColor: '#ffffff',
+                      border: '1px solid #e5e7eb',
                       borderRadius: '8px',
+                      fontSize: '13px',
+                      boxShadow: '0 4px 6px -1px rgba(0,0,0,0.08)',
                     }}
-                    labelStyle={{ fontWeight: 600 }}
+                    labelStyle={{ fontWeight: 600, color: '#111827' }}
+                    cursor={{ fill: 'rgba(0,0,0,0.03)' }}
                   />
-                  <Bar
-                    dataKey="confirmed"
-                    fill="hsl(var(--status-confirmed))"
-                    radius={[4, 4, 0, 0]}
-                    name="Confirmed"
-                  />
-                  <Bar
-                    dataKey="pending"
-                    fill="hsl(var(--status-pending))"
-                    radius={[4, 4, 0, 0]}
-                    name="Pending"
-                  />
-                  <Bar
-                    dataKey="cancelled"
-                    fill="hsl(var(--status-cancelled))"
-                    radius={[4, 4, 0, 0]}
-                    name="Cancelled"
-                  />
+                  <Bar dataKey="confirmed" fill="#16a34a" radius={[3, 3, 0, 0]} name="Confirmed" />
+                  <Bar dataKey="pending" fill="#d97706" radius={[3, 3, 0, 0]} name="Pending" />
+                  <Bar dataKey="cancelled" fill="#dc2626" radius={[3, 3, 0, 0]} name="Cancelled" />
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -177,32 +185,32 @@ export function DashboardContent({ data }: Props) {
         </Card>
 
         {/* Delivery Performance */}
-        <Card className="lg:col-span-3">
+        <Card className="lg:col-span-3 card-elevated">
           <CardHeader>
             <CardTitle>Delivery Performance</CardTitle>
             <CardDescription>Email and reminder statistics</CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
             <ProgressStat
-              icon={<MailCheck className="size-4 text-status-confirmed" />}
+              icon={<MailCheck className="size-4" style={{ color: '#16a34a' }} />}
               label="Email Delivery Rate"
               value={deliveryMetrics.deliveryRate}
               detail={`${deliveryMetrics.remindersSent} of ${deliveryMetrics.totalReminders} emails delivered this week`}
-              barColor="bg-status-confirmed"
+              barHex="#16a34a"
             />
             <ProgressStat
-              icon={<CheckCircle2 className="size-4 text-primary" />}
+              icon={<CheckCircle2 className="size-4" style={{ color: '#0d9488' }} />}
               label="Confirmation Rate"
               value={deliveryMetrics.confirmationRate}
               detail={`${deliveryMetrics.confirmedAppts} of ${deliveryMetrics.totalAppts} clients confirmed`}
-              barColor="bg-primary"
+              barHex="#0d9488"
             />
             <ProgressStat
-              icon={<XCircle className="size-4 text-destructive" />}
+              icon={<XCircle className="size-4" style={{ color: '#dc2626' }} />}
               label="No-show Rate"
               value={deliveryMetrics.noShowRate}
               detail={`${deliveryMetrics.noShows} no-shows this week`}
-              barColor="bg-destructive"
+              barHex="#dc2626"
             />
           </CardContent>
         </Card>
@@ -212,7 +220,7 @@ export function DashboardContent({ data }: Props) {
       <div className="grid gap-6 lg:grid-cols-5">
 
         {/* Upcoming Today */}
-        <Card className="lg:col-span-3">
+        <Card className="lg:col-span-3 card-elevated">
           <CardHeader className="flex flex-row items-center justify-between">
             <div>
               <CardTitle>Upcoming Today</CardTitle>
@@ -234,7 +242,7 @@ export function DashboardContent({ data }: Props) {
                 upcomingToday.map((appointment) => (
                   <div
                     key={appointment.id}
-                    className="flex items-center justify-between rounded-lg border p-3 transition-colors hover:bg-muted/50"
+                    className="flex items-center justify-between rounded-lg border p-3 transition-all duration-200 hover:bg-muted/50 hover:shadow-sm"
                   >
                     <div className="flex items-center gap-3">
                       <Avatar className="size-10">
@@ -288,7 +296,7 @@ export function DashboardContent({ data }: Props) {
         </Card>
 
         {/* Recent Activity */}
-        <Card className="lg:col-span-2">
+        <Card className="lg:col-span-2 card-elevated">
           <CardHeader>
             <CardTitle>Recent Activity</CardTitle>
             <CardDescription>Latest updates and notifications</CardDescription>
@@ -304,7 +312,7 @@ export function DashboardContent({ data }: Props) {
                   const Icon = eventIconMap[activity.type] || Mail
                   const iconColor = eventColorMap[activity.type] || 'text-muted-foreground'
                   return (
-                    <div key={activity.id} className="flex gap-3">
+                    <div key={activity.id} className="flex gap-3 rounded-lg p-2 transition-colors duration-150 hover:bg-muted/50">
                       <div className={cn('mt-0.5', iconColor)}>
                         <Icon className="size-4" />
                       </div>
@@ -330,25 +338,28 @@ function ProgressStat({
   label,
   value,
   detail,
-  barColor,
+  barHex,
 }: {
   icon: React.ReactNode
   label: string
   value: number
   detail: string
-  barColor: string
+  barHex: string
 }) {
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between text-sm">
         <div className="flex items-center gap-2">
           {icon}
-          <span>{label}</span>
+          <span className="font-medium">{label}</span>
         </div>
-        <span className="font-medium">{Math.round(value)}%</span>
+        <span className="text-sm font-semibold tabular-nums">{Math.round(value)}%</span>
       </div>
-      <div className="h-2 overflow-hidden rounded-full bg-muted">
-        <div className={cn('h-full transition-all', barColor)} style={{ width: `${Math.round(value)}%` }} />
+      <div className="h-2 overflow-hidden rounded-full bg-gray-100">
+        <div
+          className="h-full rounded-full transition-all duration-700"
+          style={{ width: `${Math.min(Math.round(value), 100)}%`, backgroundColor: barHex }}
+        />
       </div>
       <p className="text-xs text-muted-foreground">{detail}</p>
     </div>

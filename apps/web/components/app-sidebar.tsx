@@ -91,11 +91,11 @@ export function AppSidebar() {
   return (
     <Sidebar collapsible="icon">
       <SidebarHeader className="p-4">
-        <Link href="/" className="flex items-center gap-2">
-          <div className="flex size-8 items-center justify-center rounded-md bg-primary text-primary-foreground">
+        <Link href="/" className="flex items-center gap-2.5 transition-opacity hover:opacity-80">
+          <div className="flex size-8 items-center justify-center rounded-lg bg-linear-to-br from-primary to-primary/80 text-primary-foreground shadow-sm">
             <CalendarClock className="size-4" />
           </div>
-          <span className="text-lg font-semibold group-data-[collapsible=icon]:hidden">
+          <span className="text-lg font-semibold tracking-tight group-data-[collapsible=icon]:hidden">
             RemindFlow
           </span>
         </Link>
@@ -104,8 +104,8 @@ export function AppSidebar() {
          <SidebarSeparator className="group-data-[collapsible=icon]:hidden" />
 
       <SidebarContent><SidebarGroup>
-          <SidebarGroupLabel>Overview</SidebarGroupLabel>
-          <SidebarGroupContent className='p-2'>
+          <SidebarGroupLabel className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70">Overview</SidebarGroupLabel>
+          <SidebarGroupContent className='p-1'>
             <SidebarMenu>
               {mainNavItems.map((item) => (
                 <SidebarMenuItem key={item.href}>
@@ -126,8 +126,8 @@ export function AppSidebar() {
         </SidebarGroup>
 
         <SidebarGroup>
-          <SidebarGroupLabel>Management</SidebarGroupLabel>
-          <SidebarGroupContent className='p-2'>
+          <SidebarGroupLabel className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70">Management</SidebarGroupLabel>
+          <SidebarGroupContent className='p-1'>
             <SidebarMenu>
               {managementNavItems.map((item) => (
                 <SidebarMenuItem key={item.href}>
@@ -141,8 +141,8 @@ export function AppSidebar() {
                       <span>{item.title}</span>
                     </Link>
                   </SidebarMenuButton>
-                  {item.badge && (
-                    <SidebarMenuBadge className="bg-destructive/10 text-destructive">
+                  {item.badge > 0 && (
+                    <SidebarMenuBadge className="bg-destructive/10 text-destructive font-medium badge-pulse">
                       {item.badge}
                     </SidebarMenuBadge>
                   )}

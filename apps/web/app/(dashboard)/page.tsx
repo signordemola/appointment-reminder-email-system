@@ -1,4 +1,3 @@
-import { Calendar, CheckCircle2, Clock, AlertTriangle } from 'lucide-react'
 import { DateTime } from 'luxon'
 import Link from 'next/link'
 import { Plus } from 'lucide-react'
@@ -51,7 +50,7 @@ function prepareDashboardData(raw: DashboardSummary): PreparedDashboardData {
       value: m.appointmentsToday,
       change: `${m.appointmentsToday} scheduled today`,
       trend: 'neutral',
-      icon: Calendar,
+      icon: 'calendar',
       color: 'text-primary',
       bgColor: 'bg-primary/10',
     },
@@ -60,7 +59,7 @@ function prepareDashboardData(raw: DashboardSummary): PreparedDashboardData {
       value: m.confirmedAppointments,
       change: `${Math.round(confirmationRate)}% confirmation rate`,
       trend: 'up',
-      icon: CheckCircle2,
+      icon: 'check-circle',
       color: 'text-status-confirmed',
       bgColor: 'bg-status-confirmed/10',
     },
@@ -69,7 +68,7 @@ function prepareDashboardData(raw: DashboardSummary): PreparedDashboardData {
       value: m.pendingConfirmations,
       change: 'Awaiting confirmation',
       trend: 'neutral',
-      icon: Clock,
+      icon: 'clock',
       color: 'text-status-pending',
       bgColor: 'bg-status-pending/10',
     },
@@ -78,7 +77,7 @@ function prepareDashboardData(raw: DashboardSummary): PreparedDashboardData {
       value: m.rescheduleRequests,
       change: m.rescheduleRequests > 0 ? 'Needs attention' : 'All caught up',
       trend: m.rescheduleRequests > 0 ? 'down' : 'neutral',
-      icon: AlertTriangle,
+      icon: 'alert-triangle',
       color: 'text-destructive',
       bgColor: 'bg-destructive/10',
     },

@@ -1,5 +1,4 @@
 // Shared dashboard types — used by server page, client content, and skeletons
-import type { LucideIcon } from 'lucide-react'
 
 // ── Raw API Response ──────────────────────────────────────────
 export interface DashboardSummary {
@@ -58,7 +57,7 @@ export interface StatCard {
   value: number
   change: string
   trend: 'up' | 'down' | 'neutral'
-  icon: LucideIcon
+  icon: string
   color: string
   bgColor: string
 }

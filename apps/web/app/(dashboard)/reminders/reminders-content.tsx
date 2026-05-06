@@ -334,7 +334,7 @@ export function RemindersContent({ initialRules }: RemindersContentProps) {
       <div className="flex flex-1 flex-col gap-6 p-6">
         {/* Stats */}
         <div className="grid gap-4 sm:grid-cols-3">
-          <Card>
+          <Card className="card-elevated">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
@@ -347,7 +347,7 @@ export function RemindersContent({ initialRules }: RemindersContentProps) {
               </div>
             </CardContent>
           </Card>
-          <Card>
+          <Card className="card-elevated">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
@@ -360,7 +360,7 @@ export function RemindersContent({ initialRules }: RemindersContentProps) {
               </div>
             </CardContent>
           </Card>
-          <Card>
+          <Card className="card-elevated">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
@@ -378,7 +378,7 @@ export function RemindersContent({ initialRules }: RemindersContentProps) {
         </div>
 
         {/* Active Rules */}
-        <Card>
+        <Card className="card-elevated">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <span className="size-2 rounded-full bg-status-confirmed" />
@@ -462,7 +462,7 @@ export function RemindersContent({ initialRules }: RemindersContentProps) {
 
         {/* Inactive Rules */}
         {inactiveRules.length > 0 && (
-          <Card>
+          <Card className="card-elevated">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-muted-foreground">
                 <span className="size-2 rounded-full bg-muted-foreground" />

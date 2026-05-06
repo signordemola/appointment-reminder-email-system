@@ -28,7 +28,7 @@ export function Header({ title, breadcrumbs = [], actions }: HeaderProps) {
   const notificationCount = (data?.metrics?.rescheduleRequests ?? 0) + (data?.metrics?.deliveryFailures ?? 0)
 
   return (
-    <header className="flex h-16 shrink-0 items-center gap-2 border-b bg-background p-5">
+    <header className="flex h-16 shrink-0 items-center gap-2 border-b bg-background/95 p-5 backdrop-blur-sm supports-backdrop-filter:bg-background/80">
       <SidebarTrigger className="-ml-1" />
       <Separator orientation="vertical" className="mr-2 h-4" />
       
@@ -65,7 +65,7 @@ export function Header({ title, breadcrumbs = [], actions }: HeaderProps) {
         <Button variant="ghost" size="icon" className="relative">
           <Bell className="size-4" />
           {notificationCount > 0 && (
-            <span className="absolute -top-0.5 -right-0.5 flex size-4 items-center justify-center rounded-full bg-destructive text-[10px] font-medium text-destructive-foreground">
+            <span className="absolute -top-0.5 -right-0.5 flex size-4 items-center justify-center rounded-full bg-destructive text-[10px] font-medium text-destructive-foreground badge-pulse">
               {notificationCount}
             </span>
           )}

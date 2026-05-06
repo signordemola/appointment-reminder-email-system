@@ -167,7 +167,7 @@ export function RescheduleContent({ initialRequests }: RescheduleContentProps) {
       <div className="flex flex-1 flex-col gap-6 p-6">
         {/* Stats */}
         <div className="grid gap-4 sm:grid-cols-3">
-          <Card>
+          <Card className="card-elevated">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
@@ -180,7 +180,7 @@ export function RescheduleContent({ initialRequests }: RescheduleContentProps) {
               </div>
             </CardContent>
           </Card>
-          <Card>
+          <Card className="card-elevated">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
@@ -195,7 +195,7 @@ export function RescheduleContent({ initialRequests }: RescheduleContentProps) {
               </div>
             </CardContent>
           </Card>
-          <Card>
+          <Card className="card-elevated">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
@@ -239,7 +239,7 @@ export function RescheduleContent({ initialRequests }: RescheduleContentProps) {
                 </Card>
               ) : (
                 pendingRequests.map((request) => (
-                  <Card key={request.id}>
+                  <Card key={request.id} className="card-elevated">
                     <CardContent className="p-6">
                       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                         <div className="flex items-start gap-4">
@@ -351,7 +351,7 @@ export function RescheduleContent({ initialRequests }: RescheduleContentProps) {
                 </Card>
               ) : (
                 resolvedRequests.map((request) => (
-                  <Card key={request.id} className="opacity-75">
+                  <Card key={request.id} className="opacity-75 card-elevated">
                     <CardContent className="p-6">
                       <div className="flex items-start gap-4">
                         <Avatar className="size-10">
