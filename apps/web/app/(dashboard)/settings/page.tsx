@@ -58,7 +58,7 @@ export default function SettingsPage() {
           </TabsList>
 
           <TabsContent value="business" className="mt-6 space-y-6">
-            <Card>
+            <Card className="card-elevated">
               <CardHeader>
                 <CardTitle>Business Information</CardTitle>
                 <CardDescription>
@@ -97,7 +97,7 @@ export default function SettingsPage() {
               </CardContent>
             </Card>
 
-            <Card>
+            <Card className="card-elevated">
               <CardHeader>
                 <CardTitle>Scheduling Preferences</CardTitle>
                 <CardDescription>
@@ -151,7 +151,7 @@ export default function SettingsPage() {
           </TabsContent>
 
           <TabsContent value="notifications" className="mt-6 space-y-6">
-            <Card>
+            <Card className="card-elevated">
               <CardHeader>
                 <CardTitle>Email Notifications</CardTitle>
                 <CardDescription>
@@ -201,7 +201,7 @@ export default function SettingsPage() {
               </CardContent>
             </Card>
 
-            <Card>
+            <Card className="card-elevated">
               <CardHeader>
                 <CardTitle>Email Sender Settings</CardTitle>
                 <CardDescription>
@@ -228,7 +228,7 @@ export default function SettingsPage() {
           </TabsContent>
 
           <TabsContent value="account" className="mt-6 space-y-6">
-            <Card>
+            <Card className="card-elevated">
               <CardHeader>
                 <CardTitle>Account Information</CardTitle>
                 <CardDescription>
@@ -253,7 +253,7 @@ export default function SettingsPage() {
               </CardContent>
             </Card>
 
-            <Card>
+            <Card className="card-elevated">
               <CardHeader>
                 <CardTitle>Change Password</CardTitle>
                 <CardDescription>
@@ -278,7 +278,7 @@ export default function SettingsPage() {
               </CardContent>
             </Card>
 
-            <Card className="border-destructive/50">
+            <Card className="card-elevated border-destructive/50">
               <CardHeader>
                 <CardTitle className="text-destructive">Danger Zone</CardTitle>
                 <CardDescription>

@@ -146,13 +146,13 @@ function mapApiAppointment(apiAppt: ApiAppointment): Appointment {
   }
 }
 
-const statusConfig: Record<Appointment['status'], { label: string; className: string }> = {
-  scheduled: { label: 'Scheduled', className: 'bg-muted text-muted-foreground' },
-  confirmed: { label: 'Confirmed', className: 'bg-status-confirmed/10 text-status-confirmed border-status-confirmed/20' },
-  cancelled: { label: 'Cancelled', className: 'bg-status-cancelled/10 text-status-cancelled border-status-cancelled/20' },
-  'no-show': { label: 'No Show', className: 'bg-status-noshow/10 text-status-noshow border-status-noshow/20' },
-  completed: { label: 'Completed', className: 'bg-muted text-foreground' },
-  rescheduled: { label: 'Rescheduled', className: 'bg-status-rescheduled/10 text-status-rescheduled border-status-rescheduled/20' },
+const statusConfig: Record<Appointment['status'], { label: string; style: React.CSSProperties }> = {
+  scheduled: { label: 'Scheduled', style: { backgroundColor: 'rgba(107,114,128,0.1)', color: '#6b7280' } },
+  confirmed: { label: 'Confirmed', style: { backgroundColor: 'rgba(22,163,74,0.1)', color: '#16a34a' } },
+  cancelled: { label: 'Cancelled', style: { backgroundColor: 'rgba(220,38,38,0.1)', color: '#dc2626' } },
+  'no-show': { label: 'No Show', style: { backgroundColor: 'rgba(234,88,12,0.1)', color: '#ea580c' } },
+  completed: { label: 'Completed', style: { backgroundColor: 'rgba(107,114,128,0.1)', color: '#374151' } },
+  rescheduled: { label: 'Rescheduled', style: { backgroundColor: 'rgba(217,119,6,0.1)', color: '#d97706' } },
 }
 
 function formatRelativeDate(isoString: string) {
@@ -296,14 +296,14 @@ export default function AppointmentsPage() {
           const client = row.original.client
           return (
             <div className="flex items-center gap-3">
-              <Avatar className="size-8">
+              <Avatar className="size-9 ring-2 ring-transparent transition-all group-hover:ring-primary/30">
                 <AvatarImage src={client.avatar ?? undefined} />
-                <AvatarFallback className="bg-primary/10 text-primary text-xs">
+                <AvatarFallback className="bg-primary/10 text-primary text-xs font-semibold">
                   {client.initials}
                 </AvatarFallback>
               </Avatar>
               <div>
-                <p className="font-medium">{client.name}</p>
+                <p className="font-semibold text-sm">{client.name}</p>
                 <p className="text-xs text-muted-foreground">{client.email}</p>
               </div>
             </div>
@@ -350,7 +350,7 @@ export default function AppointmentsPage() {
           const status = row.original.status
           const config = statusConfig[status]
           return (
-            <Badge variant="outline" className={cn('text-xs', config.className)}>
+            <Badge variant="outline" className="text-xs border-transparent font-medium" style={config.style}>
               {config.label}
             </Badge>
           )
@@ -577,7 +577,7 @@ export default function AppointmentsPage() {
       />
 
       <div className="flex flex-1 flex-col gap-4 p-6">
-        <Card>
+        <Card className="card-elevated">
           <CardHeader className="pb-4">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex flex-1 items-center gap-2">
@@ -679,6 +679,7 @@ export default function AppointmentsPage() {
                       <TableRow
                         key={row.id}
                         data-state={row.getIsSelected() && 'selected'}
+                        className="group cursor-pointer transition-colors hover:bg-muted/40"
                       >
                         {row.getVisibleCells().map((cell) => (
                           <TableCell key={cell.id}>
@@ -692,11 +693,12 @@ export default function AppointmentsPage() {
                     ))
                   ) : (
                     <TableRow>
-                      <TableCell
-                        colSpan={columns.length}
-                        className="h-24 text-center"
-                      >
-                        No appointments found.
+                      <TableCell colSpan={columns.length} className="h-40 text-center">
+                        <div className="flex flex-col items-center gap-3 text-muted-foreground">
+                          <Calendar className="size-10 opacity-20" />
+                          <p className="text-sm font-medium">No appointments found</p>
+                          <p className="text-xs">Create a new appointment or adjust your filters</p>
+                        </div>
                       </TableCell>
                     </TableRow>
                   )}

@@ -391,7 +391,24 @@ export function RemindersContent({ initialRules }: RemindersContentProps) {
           <CardContent>
             <div className="space-y-3">
               {activeRules.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No active rules.</p>
+                <div className="flex flex-col items-center gap-3 py-12 text-center">
+                  <div className="flex size-14 items-center justify-center rounded-2xl bg-primary/10">
+                    <Bell className="size-7 text-primary" />
+                  </div>
+                  <div className="space-y-1">
+                    <p className="font-semibold text-foreground">No active reminder rules</p>
+                    <p className="text-sm text-muted-foreground max-w-xs mx-auto">
+                      Create your first rule to automatically send reminders before appointments.
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => setDialogOpen(true)}
+                    className="mt-1 inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90"
+                  >
+                    <Plus className="size-4" />
+                    Create first rule
+                  </button>
+                </div>
               ) : (
               activeRules.map((rule) => (
                 <div

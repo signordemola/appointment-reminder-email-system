@@ -175,14 +175,14 @@ export function ContactsContent({ initialContacts }: ContactsContentProps) {
         header: 'Contact',
         cell: ({ row }) => (
           <div className="flex items-center gap-3">
-            <Avatar className="size-8">
+            <Avatar className="size-9 ring-2 ring-transparent transition-all group-hover:ring-primary/30">
               <AvatarImage src={row.original.avatar ?? undefined} />
-              <AvatarFallback className="bg-primary/10 text-primary text-xs">
+              <AvatarFallback className="bg-primary/10 text-primary text-xs font-semibold">
                 {row.original.initials}
               </AvatarFallback>
             </Avatar>
             <div>
-              <p className="font-medium">{row.original.name}</p>
+              <p className="font-semibold text-sm">{row.original.name}</p>
               <p className="text-xs text-muted-foreground">{row.original.email}</p>
             </div>
           </div>
@@ -217,11 +217,15 @@ export function ContactsContent({ initialContacts }: ContactsContentProps) {
         accessorKey: 'status',
         header: 'Status',
         cell: ({ row }) => (
-          <Badge 
-            variant="outline" 
-            className={row.original.status === 'active' 
-              ? 'bg-status-confirmed/10 text-status-confirmed border-status-confirmed/20' 
-              : 'bg-muted text-muted-foreground'
+          <Badge
+            variant="outline"
+            className={row.original.status === 'active'
+              ? 'border-transparent font-medium'
+              : 'border-transparent font-medium'
+            }
+            style={row.original.status === 'active'
+              ? { backgroundColor: 'rgba(22,163,74,0.1)', color: '#16a34a' }
+              : { backgroundColor: 'rgba(107,114,128,0.1)', color: '#6b7280' }
             }
           >
             {row.original.status === 'active' ? 'Active' : 'Inactive'}
@@ -379,7 +383,7 @@ export function ContactsContent({ initialContacts }: ContactsContentProps) {
       />
 
       <div className="flex flex-1 flex-col gap-4 p-6">
-        <Card>
+        <Card className="card-elevated">
           <CardHeader className="pb-4">
             <div className="flex items-center gap-2">
               <div className="relative flex-1 sm:max-w-sm">
@@ -415,7 +419,11 @@ export function ContactsContent({ initialContacts }: ContactsContentProps) {
                 <TableBody>
                   {table.getRowModel().rows?.length ? (
                     table.getRowModel().rows.map((row) => (
-                      <TableRow key={row.id} data-state={row.getIsSelected() && 'selected'}>
+                      <TableRow
+                        key={row.id}
+                        data-state={row.getIsSelected() && 'selected'}
+                        className="group cursor-pointer transition-colors hover:bg-muted/40"
+                      >
                         {row.getVisibleCells().map((cell) => (
                           <TableCell key={cell.id}>
                             {flexRender(cell.column.columnDef.cell, cell.getContext())}
@@ -425,8 +433,12 @@ export function ContactsContent({ initialContacts }: ContactsContentProps) {
                     ))
                   ) : (
                     <TableRow>
-                      <TableCell colSpan={columns.length} className="h-24 text-center">
-                        No contacts found.
+                      <TableCell colSpan={columns.length} className="h-40 text-center">
+                        <div className="flex flex-col items-center gap-3 text-muted-foreground">
+                          <User className="size-10 opacity-20" />
+                          <p className="text-sm font-medium">No contacts found</p>
+                          <p className="text-xs">Add your first contact or try a different search</p>
+                        </div>
                       </TableCell>
                     </TableRow>
                   )}
@@ -435,9 +447,24 @@ export function ContactsContent({ initialContacts }: ContactsContentProps) {
             </div>
 
             <div className="flex items-center justify-between pt-4">
-              <p className="text-sm text-muted-foreground">
-                {table.getFilteredRowModel().rows.length} contact(s)
-              </p>
+              <div className="flex items-center gap-4">
+                <p className="text-sm text-muted-foreground">
+                  Showing {table.getRowModel().rows.length} of{' '}
+                  {table.getFilteredRowModel().rows.length} contact(s)
+                </p>
+                <div className="hidden items-center gap-2 sm:flex">
+                  <span className="text-xs text-muted-foreground">Rows per page</span>
+                  <select
+                    value={table.getState().pagination.pageSize}
+                    onChange={(e) => table.setPageSize(Number(e.target.value))}
+                    className="h-8 rounded-md border border-input bg-background px-2 text-xs"
+                  >
+                    {[10, 20, 50].map((size) => (
+                      <option key={size} value={size}>{size}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
               <div className="flex items-center gap-2">
                 <Button
                   variant="outline"
@@ -448,6 +475,10 @@ export function ContactsContent({ initialContacts }: ContactsContentProps) {
                 >
                   <ChevronLeft className="size-4" />
                 </Button>
+                <span className="min-w-20 text-center text-sm tabular-nums text-muted-foreground">
+                  Page {table.getState().pagination.pageIndex + 1} of{' '}
+                  {table.getPageCount()}
+                </span>
                 <Button
                   variant="outline"
                   size="icon"

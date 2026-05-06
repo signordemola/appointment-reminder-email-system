@@ -185,7 +185,7 @@ export default function AppointmentDetailPage() {
 
         {/* Top: Appointment + Contact Info */}
         <div className="grid gap-6 lg:grid-cols-3">
-          <Card className="lg:col-span-2">
+          <Card className="lg:col-span-2 card-elevated">
             <CardHeader>
               <div className="flex items-start justify-between">
                 <div>
@@ -240,7 +240,7 @@ export default function AppointmentDetailPage() {
           </Card>
 
           {/* Contact Card */}
-          <Card>
+          <Card className="card-elevated">
             <CardHeader>
               <CardTitle className="text-base">Client Information</CardTitle>
             </CardHeader>
@@ -274,7 +274,7 @@ export default function AppointmentDetailPage() {
         </div>
 
         {/* Reminder Events Timeline */}
-        <Card>
+        <Card className="card-elevated">
           <CardHeader>
             <CardTitle className="text-base">Reminder Timeline</CardTitle>
             <CardDescription>
