@@ -228,7 +228,13 @@ export function ContactsContent({ initialContacts }: ContactsContentProps) {
               : { backgroundColor: 'rgba(107,114,128,0.1)', color: '#6b7280' }
             }
           >
-            {row.original.status === 'active' ? 'Active' : 'Inactive'}
+            <span className="flex items-center gap-1.5">
+              <span
+                className="size-1.5 rounded-full"
+                style={row.original.status === 'active' ? { backgroundColor: '#16a34a' } : { backgroundColor: '#9ca3af' }}
+              />
+              {row.original.status === 'active' ? 'Active' : 'Inactive'}
+            </span>
           </Badge>
         ),
       },
@@ -301,8 +307,16 @@ export function ContactsContent({ initialContacts }: ContactsContentProps) {
           { label: 'Dashboard', href: '/' },
           { label: 'Contacts' },
         ]}
-        actions={
-          <div className="flex items-center gap-2">
+      />
+
+      <div className="flex flex-1 flex-col gap-4 p-6">
+        {/* ── Page Heading ─────────────────────────────────── */}
+        <div className="flex items-start justify-between gap-4 mb-2">
+          <div className="hidden sm:block">
+            <h1 className="text-2xl font-bold tracking-tight text-primary">Contacts</h1>
+            <p className="text-sm text-muted-foreground mt-0.5">Manage your client database and contact information.</p>
+          </div>
+          <div className="flex items-center gap-2 ml-auto sm:ml-0">
             <Button variant="outline" size="sm" className="hidden sm:flex">
               <Upload className="mr-2 size-4" />
               Import
@@ -379,10 +393,7 @@ export function ContactsContent({ initialContacts }: ContactsContentProps) {
               </DialogContent>
             </Dialog>
           </div>
-        }
-      />
-
-      <div className="flex flex-1 flex-col gap-4 p-6">
+        </div>
         <Card className="card-elevated">
           <CardHeader className="pb-4">
             <div className="flex items-center gap-2">
@@ -398,7 +409,7 @@ export function ContactsContent({ initialContacts }: ContactsContentProps) {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="rounded-md border">
+            <div className="table-scroll-x rounded-md border">
               <Table>
                 <TableHeader>
                   {table.getHeaderGroups().map((headerGroup) => (

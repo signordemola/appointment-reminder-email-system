@@ -165,6 +165,11 @@ export function RescheduleContent({ initialRequests }: RescheduleContentProps) {
       />
 
       <div className="flex flex-1 flex-col gap-6 p-6">
+        {/* ── Page Heading ─────────────────────────────────── */}
+        <div className="hidden sm:block mb-2">
+          <h1 className="text-2xl font-bold tracking-tight text-primary">Reschedule Requests</h1>
+          <p className="text-sm text-muted-foreground mt-0.5">Review and manage client reschedule requests.</p>
+        </div>
         {/* Stats */}
         <div className="grid gap-4 sm:grid-cols-3">
           <Card className="card-elevated">

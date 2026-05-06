@@ -1,10 +1,9 @@
+import { Suspense } from 'react'
 import { DateTime } from 'luxon'
-import Link from 'next/link'
-import { Plus } from 'lucide-react'
 
 import { Header } from '@/components/header'
-import { Button } from '@/components/ui/button'
 import { DashboardContent } from './dashboard-content'
+import { DashboardContentSkeleton } from './dashboard-skeleton'
 import type {
   DashboardSummary,
   StatCard,
@@ -140,25 +139,27 @@ function prepareDashboardData(raw: DashboardSummary): PreparedDashboardData {
   }
 }
 
-// ── Server Component Page ────────────────────────────────────
-export default async function DashboardPage() {
+// ── Async data component (wrapped in Suspense) ───────────────
+async function DashboardData() {
   const raw = await fetchDashboardData()
   const data = prepareDashboardData(raw)
+  return <DashboardContent data={data} />
+}
 
+// ── Server Component Page ────────────────────────────────────
+export default function DashboardPage() {
   return (
     <>
       <Header
         title="Dashboard"
-        actions={
-          <Button size="sm" className="gap-1" asChild>
-            <Link href="/appointments">
-              <Plus className="size-4" />
-              <span className="hidden sm:inline">New Appointment</span>
-            </Link>
-          </Button>
-        }
+        breadcrumbs={[
+          { label: 'Dashboard', href: '/' },
+          { label: 'Overview' },
+        ]}
       />
-      <DashboardContent data={data} />
+      <Suspense fallback={<DashboardContentSkeleton />}>
+        <DashboardData />
+      </Suspense>
     </>
   )
 }

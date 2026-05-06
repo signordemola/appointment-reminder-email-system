@@ -1,5 +1,6 @@
-import { Header } from '@/components/header'
+import { Suspense } from 'react'
 import { ContactsContent } from './contacts-content'
+import { ContactsContentSkeleton } from './contacts-skeleton'
 import type { Contact } from '@/lib/hooks/use-contacts'
 
 export const dynamic = 'force-dynamic'
@@ -20,7 +21,17 @@ async function fetchContacts(): Promise<Contact[]> {
   }
 }
 
-export default async function ContactsPage() {
+// ── Async data component (wrapped in Suspense) ───────────────
+async function ContactsData() {
   const contacts = await fetchContacts()
   return <ContactsContent initialContacts={contacts} />
+}
+
+// ── Page: Header renders instantly, data streams in ──────────
+export default function ContactsPage() {
+  return (
+    <Suspense fallback={<ContactsContentSkeleton />}>
+      <ContactsData />
+    </Suspense>
+  )
 }

@@ -184,10 +184,18 @@ export function RemindersContent({ initialRules }: RemindersContentProps) {
           { label: 'Dashboard', href: '/' },
           { label: 'Reminder Rules' },
         ]}
-        actions={
+      />
+
+      <div className="flex flex-1 flex-col gap-6 p-6">
+        {/* ── Page Heading ─────────────────────────────────── */}
+        <div className="flex items-start justify-between gap-4 mb-2">
+          <div className="hidden sm:block">
+            <h1 className="text-2xl font-bold tracking-tight text-primary">Reminder Rules</h1>
+            <p className="text-sm text-muted-foreground mt-0.5">Automate client reminders with customizable scheduling rules.</p>
+          </div>
           <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
             <DialogTrigger asChild>
-              <Button size="sm">
+              <Button size="sm" className="ml-auto sm:ml-0">
                 <Plus className="mr-2 size-4" />
                 <span className="hidden sm:inline">New Rule</span>
                 <span className="sm:hidden">New</span>
@@ -328,10 +336,7 @@ export function RemindersContent({ initialRules }: RemindersContentProps) {
               </Form>
             </DialogContent>
           </Dialog>
-        }
-      />
-
-      <div className="flex flex-1 flex-col gap-6 p-6">
+        </div>
         {/* Stats */}
         <div className="grid gap-4 sm:grid-cols-3">
           <Card className="card-elevated">

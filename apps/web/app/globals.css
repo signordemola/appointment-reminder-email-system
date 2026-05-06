@@ -4,7 +4,7 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  /* ── Core palette: warm teal + amber ──────────────────── */
+  /* ── Core palette: blue + amber (MASTER.md) ────────────── */
   --background: oklch(0.98 0.004 250);
   --foreground: oklch(0.18 0.02 260);
   --card: oklch(1 0 0);
@@ -12,19 +12,19 @@
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.18 0.02 260);
 
-  /* Primary: deep teal — trust, professionalism */
-  --primary: oklch(0.5 0.14 180);
+  /* Primary: deep blue #1E40AF — trust, professionalism */
+  --primary: oklch(0.39 0.16 264);
   --primary-foreground: oklch(0.99 0 0);
 
-  /* Secondary: warm slate */
+  /* Secondary: bright blue #3B82F6 */
   --secondary: oklch(0.96 0.006 260);
   --secondary-foreground: oklch(0.22 0.02 260);
 
   --muted: oklch(0.955 0.005 260);
   --muted-foreground: oklch(0.46 0.02 260);
 
-  /* Accent: amber — warmth, energy */
-  --accent: oklch(0.96 0.04 85);
+  /* Accent: amber #F59E0B — warmth, energy */
+  --accent: oklch(0.78 0.16 75);
   --accent-foreground: oklch(0.3 0.06 60);
 
   --destructive: oklch(0.55 0.2 25);
@@ -32,30 +32,30 @@
 
   --border: oklch(0.915 0.006 260);
   --input: oklch(0.915 0.006 260);
-  --ring: oklch(0.5 0.14 180);
+  --ring: oklch(0.39 0.16 264);
 
-  /* Charts: curated palette */
-  --chart-1: oklch(0.55 0.14 180);
-  --chart-2: oklch(0.65 0.16 145);
-  --chart-3: oklch(0.72 0.14 75);
+  /* Charts: blue-dominant palette */
+  --chart-1: oklch(0.39 0.16 264);
+  --chart-2: oklch(0.62 0.18 264);
+  --chart-3: oklch(0.78 0.16 75);
   --chart-4: oklch(0.55 0.2 25);
   --chart-5: oklch(0.52 0.14 280);
 
-  --radius: 0.625rem;
+  --radius: 0.75rem;
 
   /* Sidebar */
-  --sidebar: oklch(0.985 0.003 250);
-  --sidebar-foreground: oklch(0.18 0.02 260);
-  --sidebar-primary: oklch(0.5 0.14 180);
+  --sidebar: oklch(1 0 0);
+  --sidebar-foreground: oklch(0.28 0.10 264);
+  --sidebar-primary: oklch(0.39 0.16 264);
   --sidebar-primary-foreground: oklch(0.99 0 0);
-  --sidebar-accent: oklch(0.955 0.015 180);
-  --sidebar-accent-foreground: oklch(0.28 0.06 180);
+  --sidebar-accent: oklch(0.955 0.015 264);
+  --sidebar-accent-foreground: oklch(0.28 0.06 264);
   --sidebar-border: oklch(0.92 0.006 260);
-  --sidebar-ring: oklch(0.5 0.14 180);
+  --sidebar-ring: oklch(0.39 0.16 264);
 
   /* Status colors — distinct, professional */
   --status-confirmed: oklch(0.6 0.16 155);
-  --status-pending: oklch(0.72 0.14 75);
+  --status-pending: oklch(0.78 0.16 75);
   --status-cancelled: oklch(0.58 0.2 25);
   --status-noshow: oklch(0.5 0.14 310);
   --status-rescheduled: oklch(0.55 0.14 250);
@@ -208,6 +208,21 @@
     50% {
       opacity: 0.7;
     }
+  }
+
+  /* Table scroll shadow — mobile fade edges */
+  .table-scroll-x {
+    overflow-x: auto;
+    background:
+      linear-gradient(to right, white 30%, transparent) left center / 40px 100%
+        no-repeat,
+      linear-gradient(to left, white 30%, transparent) right center / 40px 100%
+        no-repeat,
+      linear-gradient(to right, rgba(0, 0, 0, 0.06), transparent) left center /
+        20px 100% no-repeat,
+      linear-gradient(to left, rgba(0, 0, 0, 0.06), transparent) right center /
+        20px 100% no-repeat;
+    background-attachment: local, local, scroll, scroll;
   }
 
   /* Shimmer for loading states */

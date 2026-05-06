@@ -41,6 +41,11 @@ export default function SettingsPage() {
       />
 
       <div className="flex flex-1 flex-col gap-6 p-6">
+        {/* ── Page Heading ─────────────────────────────────── */}
+        <div className="hidden sm:block mb-2">
+          <h1 className="text-2xl font-bold tracking-tight text-primary">Settings</h1>
+          <p className="text-sm text-muted-foreground mt-0.5">Manage your account, notifications, and preferences.</p>
+        </div>
         <Tabs defaultValue="business" className="flex-1">
           <TabsList>
             <TabsTrigger value="business" className="gap-2">

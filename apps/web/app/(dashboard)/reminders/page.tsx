@@ -1,4 +1,6 @@
+import { Suspense } from 'react'
 import { RemindersContent } from './reminders-content'
+import { RemindersContentSkeleton } from './reminders-skeleton'
 import type { ReminderRule } from '@/lib/hooks/use-reminders'
 
 export const dynamic = 'force-dynamic'
@@ -18,8 +20,17 @@ async function fetchReminderRules(): Promise<ReminderRule[]> {
   return response.json()
 }
 
-export default async function RemindersPage() {
+// ── Async data component (wrapped in Suspense) ───────────────
+async function RemindersData() {
   const rules = await fetchReminderRules()
-
   return <RemindersContent initialRules={rules} />
+}
+
+// ── Page: shell renders instantly, data streams in ───────────
+export default function RemindersPage() {
+  return (
+    <Suspense fallback={<RemindersContentSkeleton />}>
+      <RemindersData />
+    </Suspense>
+  )
 }

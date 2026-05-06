@@ -1,4 +1,6 @@
+import { Suspense } from 'react'
 import { RescheduleContent } from './reschedule-content'
+import { RescheduleContentSkeleton } from './reschedule-skeleton'
 import type { RescheduleRequest } from '@/lib/hooks/use-reschedule'
 
 export const dynamic = 'force-dynamic'
@@ -18,8 +20,17 @@ async function fetchRescheduleRequests(): Promise<RescheduleRequest[]> {
   return response.json()
 }
 
-export default async function ReschedulePage() {
+// ── Async data component (wrapped in Suspense) ───────────────
+async function RescheduleData() {
   const requests = await fetchRescheduleRequests()
-
   return <RescheduleContent initialRequests={requests} />
+}
+
+// ── Page: shell renders instantly, data streams in ───────────
+export default function ReschedulePage() {
+  return (
+    <Suspense fallback={<RescheduleContentSkeleton />}>
+      <RescheduleData />
+    </Suspense>
+  )
 }

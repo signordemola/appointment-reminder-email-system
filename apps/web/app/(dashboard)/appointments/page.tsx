@@ -452,8 +452,16 @@ export default function AppointmentsPage() {
           { label: 'Dashboard', href: '/' },
           { label: 'Appointments' },
         ]}
-        actions={
-          <div className="flex items-center gap-2">
+      />
+
+      <div className="flex flex-1 flex-col gap-4 p-6">
+        {/* ── Page Heading ─────────────────────────────────── */}
+        <div className="flex items-start justify-between gap-4 mb-2">
+          <div className="hidden sm:block">
+            <h1 className="text-2xl font-bold tracking-tight text-primary">Appointments</h1>
+            <p className="text-sm text-muted-foreground mt-0.5">View and manage all your scheduled appointments.</p>
+          </div>
+          <div className="flex items-center gap-2 ml-auto sm:ml-0">
             <input
               ref={fileInputRef}
               type="file"
@@ -573,10 +581,7 @@ export default function AppointmentsPage() {
               </DialogContent>
             </Dialog>
           </div>
-        }
-      />
-
-      <div className="flex flex-1 flex-col gap-4 p-6">
+        </div>
         <Card className="card-elevated">
           <CardHeader className="pb-4">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
