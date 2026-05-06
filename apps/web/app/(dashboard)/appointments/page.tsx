@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useRef } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import * as z from 'zod'
@@ -77,7 +77,7 @@ import {
 import { Label } from '@/components/ui/label'
 import { Checkbox } from '@/components/ui/checkbox'
 import { cn } from '@/lib/utils'
-import { useAppointments, useCreateAppointment, type Appointment as ApiAppointment } from '@/lib/hooks/use-appointments'
+import { useAppointments, useCreateAppointment, useImportAppointments, type Appointment as ApiAppointment } from '@/lib/hooks/use-appointments'
 import { useContacts } from '@/lib/hooks/use-contacts'
 import { Skeleton } from '@/components/ui/skeleton'
 import { toast } from 'sonner'
@@ -120,6 +120,15 @@ function mapApiAppointment(apiAppt: ApiAppointment): Appointment {
     e.status === 'sent' || e.status === 'delivered' || e.status === 'opened' || e.status === 'clicked'
   ).length ?? 0
 
+  const statusMap: Record<string, Appointment['status']> = {
+    scheduled: 'scheduled',
+    confirmed: 'confirmed',
+    canceled: 'cancelled',
+    no_show: 'no-show',
+    completed: 'completed',
+    reschedule_requested: 'rescheduled',
+  }
+
   return {
     id: apiAppt.id,
     client: {
@@ -132,7 +141,7 @@ function mapApiAppointment(apiAppt: ApiAppointment): Appointment {
     service: apiAppt.title,
     datetime: apiAppt.startsAtUtc,
     duration,
-    status: (apiAppt.status === 'no_show' ? 'no-show' : apiAppt.status) as Appointment['status'],
+    status: statusMap[apiAppt.status] ?? 'scheduled',
     remindersSent: sentReminders,
   }
 }
@@ -183,6 +192,20 @@ export default function AppointmentsPage() {
   })
   const { data: contactsData } = useContacts()
   const createAppointment = useCreateAppointment()
+  const importAppointments = useImportAppointments()
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    try {
+      const result = await importAppointments.mutateAsync(file)
+      toast.success(`Imported ${result.imported} appointment${result.imported !== 1 ? 's' : ''}${result.failed > 0 ? `. ${result.failed} failed.` : ''}`)
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Import failed')
+    }
+    if (fileInputRef.current) fileInputRef.current.value = ''
+  }
 
   const appointments = useMemo(() => {
     return data?.items.map(mapApiAppointment) ?? []
@@ -356,7 +379,7 @@ export default function AppointmentsPage() {
             <DropdownMenuContent align="end">
               <DropdownMenuLabel>Actions</DropdownMenuLabel>
               <DropdownMenuSeparator />
-              <DropdownMenuItem>
+              <DropdownMenuItem onClick={() => window.location.href = `/appointments/${row.original.id}`}>
                 <User className="mr-2 size-4" />
                 View details
               </DropdownMenuItem>
@@ -431,9 +454,22 @@ export default function AppointmentsPage() {
         ]}
         actions={
           <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" className="hidden sm:flex">
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".csv"
+              onChange={handleImport}
+              className="hidden"
+            />
+            <Button
+              variant="outline"
+              size="sm"
+              className="hidden sm:flex"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={importAppointments.isPending}
+            >
               <Upload className="mr-2 size-4" />
-              Import
+              {importAppointments.isPending ? 'Importing...' : 'Import'}
             </Button>
             <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
               <DialogTrigger asChild>
@@ -563,10 +599,10 @@ export default function AppointmentsPage() {
                     <SelectItem value="all">All Status</SelectItem>
                     <SelectItem value="scheduled">Scheduled</SelectItem>
                     <SelectItem value="confirmed">Confirmed</SelectItem>
-                    <SelectItem value="cancelled">Cancelled</SelectItem>
-                    <SelectItem value="no-show">No Show</SelectItem>
+                    <SelectItem value="canceled">Cancelled</SelectItem>
+                    <SelectItem value="no_show">No Show</SelectItem>
                     <SelectItem value="completed">Completed</SelectItem>
-                    <SelectItem value="rescheduled">Rescheduled</SelectItem>
+                    <SelectItem value="reschedule_requested">Rescheduled</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

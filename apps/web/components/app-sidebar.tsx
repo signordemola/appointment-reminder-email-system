@@ -40,6 +40,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import { useDashboardSummary } from '@/lib/hooks/use-dashboard'
 
 const mainNavItems = [
   {
@@ -59,20 +60,6 @@ const mainNavItems = [
   },
 ]
 
-const managementNavItems = [
-  {
-    title: 'Reminder Rules',
-    href: '/reminders',
-    icon: Bell,
-  },
-  {
-    title: 'Reschedule Requests',
-    href: '/reschedule',
-    icon: RotateCcw,
-    badge: 3,
-  },
-]
-
 const settingsNavItems = [
   {
     title: 'Settings',
@@ -83,6 +70,23 @@ const settingsNavItems = [
 
 export function AppSidebar() {
   const pathname = usePathname()
+  const { data } = useDashboardSummary()
+  const pendingRescheduleCount = data?.metrics?.rescheduleRequests ?? 0
+
+  const managementNavItems = [
+    {
+      title: 'Reminder Rules',
+      href: '/reminders',
+      icon: Bell,
+      badge: 0,
+    },
+    {
+      title: 'Reschedule Requests',
+      href: '/reschedule',
+      icon: RotateCcw,
+      badge: pendingRescheduleCount,
+    },
+  ]
 
   return (
     <Sidebar collapsible="icon">

@@ -4,18 +4,21 @@ import { get, patch } from '../api'
 export interface RescheduleRequest {
   id: string
   appointmentId: string
-  reason: string
-  preferredStartAtUtc: string | null
-  preferredTimezone: string | null
+  message: string | null
+  preferredStartAtUtc: string
+  preferredTimezone: string
   status: 'pending' | 'accepted' | 'dismissed'
   reviewedAt: string | null
   reviewedBy: string | null
-  adminNotes: string | null
+  aiTriage: unknown | null
   createdAt: string
   updatedAt: string
   appointment: {
+    id: string
     title: string
     startsAtUtc: string
+    displayTimezone: string
+    status: string
     contact: {
       fullName: string
       email: string
@@ -32,10 +35,11 @@ export interface ReviewRescheduleInput {
   preferredTimezone?: string
 }
 
-export function useRescheduleRequests() {
+export function useRescheduleRequests(initialData?: RescheduleRequest[]) {
   return useQuery<RescheduleRequest[]>({
     queryKey: ['reschedule-requests'],
     queryFn: () => get('/reschedule-requests'),
+    ...(initialData ? { initialData } : {}),
   })
 }
 

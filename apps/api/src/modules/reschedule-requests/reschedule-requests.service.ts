@@ -24,11 +24,9 @@ export class RescheduleRequestsService {
     private readonly actionsService: ActionsService,
   ) {}
 
-  findAll() {
+  findAll(status?: string) {
     return this.prisma.rescheduleRequest.findMany({
-      where: {
-        status: "pending",
-      },
+      where: status ? { status: status as "pending" | "accepted" | "dismissed" } : {},
       include: RESCHEDULE_REQUEST_INCLUDE,
       orderBy: {
         createdAt: "desc",

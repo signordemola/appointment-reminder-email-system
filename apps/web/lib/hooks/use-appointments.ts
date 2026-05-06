@@ -76,3 +76,37 @@ export function useCreateAppointment() {
     },
   })
 }
+
+export interface ImportResult {
+  imported: number
+  failed: number
+  errors: Array<{ row: number; message: string }>
+}
+
+export function useImportAppointments() {
+  const queryClient = useQueryClient()
+  return useMutation<ImportResult, Error, File>({
+    mutationFn: async (file) => {
+      const formData = new FormData()
+      formData.append('file', file)
+
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'
+      const response = await fetch(`${apiUrl}/appointments/import`, {
+        method: 'POST',
+        body: formData,
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.message || `Import failed with status ${response.status}`)
+      }
+
+      return response.json()
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['appointments'] })
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] })
+      queryClient.invalidateQueries({ queryKey: ['contacts'] })
+    },
+  })
+}

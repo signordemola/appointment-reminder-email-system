@@ -57,12 +57,36 @@ export class ContactsService {
     });
   }
 
-  findAll() {
-    return this.prisma.contact.findMany({
+  async findAll() {
+    const contacts = await this.prisma.contact.findMany({
       orderBy: {
         fullName: "asc",
       },
+      include: {
+        _count: {
+          select: {
+            appointments: true,
+          },
+        },
+        appointments: {
+          select: {
+            startsAtUtc: true,
+          },
+          orderBy: {
+            startsAtUtc: "desc",
+          },
+          take: 1,
+        },
+      },
     });
+
+    return contacts.map((contact) => ({
+      ...contact,
+      totalAppointments: contact._count.appointments,
+      lastAppointmentAt: contact.appointments[0]?.startsAtUtc?.toISOString() ?? null,
+      _count: undefined,
+      appointments: undefined,
+    }));
   }
 
   create(input: {

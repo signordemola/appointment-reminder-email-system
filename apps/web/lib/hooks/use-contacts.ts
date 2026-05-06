@@ -20,10 +20,11 @@ export interface CreateContactInput {
   emailOptOut?: boolean
 }
 
-export function useContacts() {
+export function useContacts(initialData?: Contact[]) {
   return useQuery<Contact[]>({
     queryKey: ['contacts'],
     queryFn: () => get('/contacts'),
+    ...(initialData ? { initialData } : {}),
   })
 }
 

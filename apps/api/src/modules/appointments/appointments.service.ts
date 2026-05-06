@@ -192,6 +192,14 @@ export class AppointmentsService {
         where,
         include: {
           contact: true,
+          reminderEvents: {
+            select: {
+              id: true,
+              eventType: true,
+              status: true,
+              scheduledForUtc: true,
+            },
+          },
         },
         orderBy: [{ startsAtUtc: "asc" }, { createdAt: "desc" }],
         skip: (query.page - 1) * query.pageSize,

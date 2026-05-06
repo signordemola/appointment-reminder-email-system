@@ -1,4 +1,4 @@
-import { Controller, Get, Param, Patch, Body } from "@nestjs/common";
+import { Controller, Get, Param, Patch, Body, Query } from "@nestjs/common";
 
 import { parseRequiredUuid } from "../../common/validation/request-parsers.js";
 import { parseReviewRescheduleRequestInput } from "./dto/review-reschedule-request.dto.js";
@@ -9,8 +9,8 @@ export class RescheduleRequestsController {
   constructor(private readonly rescheduleRequestsService: RescheduleRequestsService) {}
 
   @Get()
-  findAll() {
-    return this.rescheduleRequestsService.findAll();
+  findAll(@Query("status") status?: string) {
+    return this.rescheduleRequestsService.findAll(status);
   }
 
   @Patch(":id")

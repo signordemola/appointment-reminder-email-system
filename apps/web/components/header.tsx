@@ -15,6 +15,7 @@ import {
   BreadcrumbSeparator,
 } from '@/components/ui/breadcrumb'
 import { CommandSearch } from '@/components/command-search'
+import { useDashboardSummary } from '@/lib/hooks/use-dashboard'
 
 interface HeaderProps {
   title: string
@@ -23,8 +24,11 @@ interface HeaderProps {
 }
 
 export function Header({ title, breadcrumbs = [], actions }: HeaderProps) {
+  const { data } = useDashboardSummary()
+  const notificationCount = (data?.metrics?.rescheduleRequests ?? 0) + (data?.metrics?.deliveryFailures ?? 0)
+
   return (
-    <header className="flex h-16 shrink-0 items-center gap-2 border-b bg-white p-5">
+    <header className="flex h-16 shrink-0 items-center gap-2 border-b bg-background p-5">
       <SidebarTrigger className="-ml-1" />
       <Separator orientation="vertical" className="mr-2 h-4" />
       
@@ -60,9 +64,11 @@ export function Header({ title, breadcrumbs = [], actions }: HeaderProps) {
         
         <Button variant="ghost" size="icon" className="relative">
           <Bell className="size-4" />
-          <span className="absolute -top-0.5 -right-0.5 flex size-4 items-center justify-center rounded-full bg-destructive text-[10px] font-medium text-destructive-foreground">
-            3
-          </span>
+          {notificationCount > 0 && (
+            <span className="absolute -top-0.5 -right-0.5 flex size-4 items-center justify-center rounded-full bg-destructive text-[10px] font-medium text-destructive-foreground">
+              {notificationCount}
+            </span>
+          )}
           <span className="sr-only">Notifications</span>
         </Button>
 

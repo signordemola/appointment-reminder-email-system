@@ -24,10 +24,11 @@ export interface CreateReminderRuleInput {
   templateBody?: string
 }
 
-export function useReminderRules() {
+export function useReminderRules(initialData?: ReminderRule[]) {
   return useQuery<ReminderRule[]>({
     queryKey: ['reminder-rules'],
     queryFn: () => get('/reminder-rules'),
+    ...(initialData ? { initialData } : {}),
   })
 }
 
