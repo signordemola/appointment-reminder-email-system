@@ -70,8 +70,10 @@ model Contact {
   appointments Appointment[]
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
+  deletedAt    DateTime?
 
   @@index([fullName])
+  @@index([deletedAt])
 }
 
 model Appointment {
@@ -100,15 +102,17 @@ model Appointment {
 }
 
 model ReminderRule {
-  id             String          @id @default(uuid()) @db.Uuid
-  name           String          @unique
-  channel        ReminderChannel @default(email)
-  eventType      ReminderEventType
-  offsetMinutes  Int
-  active         Boolean         @default(true)
-  reminderEvents ReminderEvent[]
-  createdAt      DateTime        @default(now())
-  updatedAt      DateTime        @updatedAt
+  id              String          @id @default(uuid()) @db.Uuid
+  name            String          @unique
+  channel         ReminderChannel @default(email)
+  eventType       ReminderEventType
+  offsetMinutes   Int
+  active          Boolean         @default(true)
+  templateSubject String?
+  templateBody    String?
+  reminderEvents  ReminderEvent[]
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
 
   @@index([active, eventType])
 }

@@ -13,6 +13,7 @@ import {
   Pencil,
   Plus,
   Power,
+  Sparkles,
   Trash2,
 } from 'lucide-react'
 
@@ -49,6 +50,7 @@ import {
 } from '@/components/ui/select'
 import { cn } from '@/lib/utils'
 import { useReminderRules, useCreateReminderRule, useToggleReminderRule, useDeleteReminderRule, type ReminderRule as ApiReminderRule } from '@/lib/hooks/use-reminders'
+import { useGenerateReminderCopy } from '@/lib/hooks/use-ai'
 import { Skeleton } from '@/components/ui/skeleton'
 import { toast } from 'sonner'
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
@@ -136,6 +138,9 @@ export function RemindersContent({ initialRules }: RemindersContentProps) {
   const activeRules = rules.filter(r => r.isActive)
   const inactiveRules = rules.filter(r => !r.isActive)
 
+  const generateCopy = useGenerateReminderCopy()
+  const [aiLoading, setAiLoading] = useState(false)
+
   const handleToggleRule = async (id: string, currentActive: boolean) => {
     try {
       await toggleRule.mutateAsync({ id, active: !currentActive })
@@ -155,7 +160,7 @@ export function RemindersContent({ initialRules }: RemindersContentProps) {
   }
 
   const handleCreateRule = async (values: ReminderFormValues) => {
-    const offsetMinutes = Number(values.offsetHours) * (values.triggerType === 'before' ? -1 : 1)
+    const offsetMinutes = Number(values.offsetHours) * 60 * (values.triggerType === 'before' ? -1 : 1)
     const eventType = values.triggerType === 'before' ? 'reminder' : 'follow_up'
     try {
       await createRule.mutateAsync({
@@ -193,7 +198,7 @@ export function RemindersContent({ initialRules }: RemindersContentProps) {
             <h1 className="text-2xl font-bold tracking-tight text-primary">Reminder Rules</h1>
             <p className="text-sm text-muted-foreground mt-0.5">Automate client reminders with customizable scheduling rules.</p>
           </div>
-          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+          <Dialog open={dialogOpen} onOpenChange={(open) => { setDialogOpen(open); if (!open) form.reset() }}>
             <DialogTrigger asChild>
               <Button size="sm" className="ml-auto sm:ml-0">
                 <Plus className="mr-2 size-4" />
@@ -205,18 +210,109 @@ export function RemindersContent({ initialRules }: RemindersContentProps) {
               <Form {...form}>
                 <form onSubmit={form.handleSubmit(handleCreateRule)}>
                   <DialogHeader>
-                    <DialogTitle>Create Reminder Rule</DialogTitle>
+                    <DialogTitle>New Reminder Rule</DialogTitle>
                     <DialogDescription>
-                      Set up an automated reminder that will be sent to clients.
+                      Configure when and what to send to your clients automatically.
                     </DialogDescription>
                   </DialogHeader>
-                  <div className="grid gap-4 py-4">
+
+                  <div className="grid gap-5 py-4">
+
+                    {/* ── Step 1: Timing sentence ───────────────────── */}
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">When to send</p>
+                      <div className="flex flex-wrap items-center gap-2 rounded-lg bg-muted/50 px-3 py-3">
+                        <span className="text-sm">Send a</span>
+
+                        <FormField
+                          control={form.control}
+                          name="channel"
+                          render={({ field }) => (
+                            <FormItem className="mb-0">
+                              <FormControl>
+                                <Select value={field.value} onValueChange={field.onChange}>
+                                  <SelectTrigger className="h-7 w-auto gap-1 border-primary/40 bg-background px-2 text-sm font-medium">
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="email">Email</SelectItem>
+                                    <SelectItem value="sms">SMS</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              </FormControl>
+                            </FormItem>
+                          )}
+                        />
+
+                        <FormField
+                          control={form.control}
+                          name="offsetHours"
+                          render={({ field }) => (
+                            <FormItem className="mb-0">
+                              <FormControl>
+                                <Select value={field.value} onValueChange={field.onChange}>
+                                  <SelectTrigger className="h-7 w-auto gap-1 border-primary/40 bg-background px-2 text-sm font-medium">
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="1">1 hour</SelectItem>
+                                    <SelectItem value="2">2 hours</SelectItem>
+                                    <SelectItem value="4">4 hours</SelectItem>
+                                    <SelectItem value="24">1 day</SelectItem>
+                                    <SelectItem value="48">2 days</SelectItem>
+                                    <SelectItem value="168">1 week</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              </FormControl>
+                            </FormItem>
+                          )}
+                        />
+
+                        <FormField
+                          control={form.control}
+                          name="triggerType"
+                          render={({ field }) => (
+                            <FormItem className="mb-0">
+                              <FormControl>
+                                <Select value={field.value} onValueChange={field.onChange}>
+                                  <SelectTrigger className="h-7 w-auto gap-1 border-primary/40 bg-background px-2 text-sm font-medium">
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="before">before</SelectItem>
+                                    <SelectItem value="after">after</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              </FormControl>
+                            </FormItem>
+                          )}
+                        />
+
+                        <span className="text-sm">the appointment.</span>
+                      </div>
+
+                      {/* Live summary sentence */}
+                      <p className="mt-1.5 text-xs text-muted-foreground">
+                        {(() => {
+                          const channel = form.watch('channel')
+                          const offset = form.watch('offsetHours')
+                          const trigger = form.watch('triggerType')
+                          const offsetLabel: Record<string, string> = {
+                            '1': '1 hour', '2': '2 hours', '4': '4 hours',
+                            '24': '1 day', '48': '2 days', '168': '1 week',
+                          }
+                          return `Your client will receive a ${channel === 'email' ? 'email' : 'text message'} ${offsetLabel[offset] ?? offset} ${trigger} their appointment.`
+                        })()}
+                      </p>
+                    </div>
+
+                    {/* ── Step 2: Rule name ─────────────────────────── */}
                     <FormField
                       control={form.control}
                       name="name"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Rule Name</FormLabel>
+                          <FormLabel>Rule Name <span className="text-muted-foreground font-normal">(for your reference)</span></FormLabel>
                           <FormControl>
                             <Input placeholder="e.g., 24-Hour Reminder" {...field} />
                           </FormControl>
@@ -224,109 +320,138 @@ export function RemindersContent({ initialRules }: RemindersContentProps) {
                         </FormItem>
                       )}
                     />
-                    <div className="grid grid-cols-2 gap-4">
-                      <FormField
-                        control={form.control}
-                        name="channel"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Channel</FormLabel>
-                            <FormControl>
-                              <Select value={field.value} onValueChange={field.onChange}>
-                                <SelectTrigger>
-                                  <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="email">Email</SelectItem>
-                                  <SelectItem value="sms">SMS</SelectItem>
-                                </SelectContent>
-                              </Select>
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      <FormField
-                        control={form.control}
-                        name="triggerType"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Trigger</FormLabel>
-                            <FormControl>
-                              <Select value={field.value} onValueChange={field.onChange}>
-                                <SelectTrigger>
-                                  <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="before">Before appointment</SelectItem>
-                                  <SelectItem value="after">After appointment</SelectItem>
-                                </SelectContent>
-                              </Select>
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
+
+                    {/* ── Divider ───────────────────────────────────── */}
+                    <div className="border-t pt-1">
+                      <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Message</p>
                     </div>
-                    <FormField
-                      control={form.control}
-                      name="offsetHours"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Time Offset</FormLabel>
-                          <FormControl>
-                            <Select value={field.value} onValueChange={field.onChange}>
-                              <SelectTrigger>
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="1">1 hour</SelectItem>
-                                <SelectItem value="2">2 hours</SelectItem>
-                                <SelectItem value="4">4 hours</SelectItem>
-                                <SelectItem value="24">24 hours (1 day)</SelectItem>
-                                <SelectItem value="48">48 hours (2 days)</SelectItem>
-                                <SelectItem value="168">168 hours (1 week)</SelectItem>
-                              </SelectContent>
-                            </Select>
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="templateSubject"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Email Subject</FormLabel>
-                          <FormControl>
-                            <Input placeholder="Reminder: Your appointment is coming up" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
+
+                    {/* Email subject — only shown for email channel */}
+                    {form.watch('channel') === 'email' && (
+                      <FormField
+                        control={form.control}
+                        name="templateSubject"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Subject Line</FormLabel>
+                            <FormControl>
+                              <Input placeholder="e.g., Reminder: Your appointment is tomorrow" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    )}
+
+                    {/* Body with inline AI + variable insert */}
                     <FormField
                       control={form.control}
                       name="templateBody"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Message Template</FormLabel>
+                          <div className="flex items-center justify-between">
+                            <FormLabel>
+                              {form.watch('channel') === 'email' ? 'Email Body' : 'Message'}
+                            </FormLabel>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              className="h-6 gap-1 px-2 text-xs text-primary hover:text-primary"
+                              disabled={aiLoading}
+                              onClick={async () => {
+                                setAiLoading(true)
+                                try {
+                                  const triggerType = form.getValues('triggerType')
+                                  const offsetHours = Number(form.getValues('offsetHours'))
+                                  const offsetMinutes = offsetHours * 60 * (triggerType === 'before' ? -1 : 1)
+                                  const eventType = triggerType === 'after' ? 'follow_up'
+                                    : (offsetHours === 0 ? 'confirmation_request' : 'reminder')
+                                  const result = await generateCopy.mutateAsync({
+                                    ruleName: form.getValues('name') || 'New Reminder',
+                                    eventType,
+                                    offsetMinutes,
+                                    businessName: 'RemindFlow',
+                                    businessType: 'appointment-based service business',
+                                    senderName: 'Client Care Team',
+                                    tone: 'warm',
+                                    includeLocation: true,
+                                    includeRescheduleOption: triggerType === 'before',
+                                  })
+                                  if (form.watch('channel') === 'email') {
+                                    form.setValue('templateSubject', result.draft.subject)
+                                  }
+                                  form.setValue('templateBody', result.draft.bodyText)
+                                  toast.success('AI copy generated — review and edit as needed')
+                                } catch (err) {
+                                  toast.error(err instanceof Error ? err.message : 'AI generation failed')
+                                } finally {
+                                  setAiLoading(false)
+                                }
+                              }}
+                            >
+                              <Sparkles className="size-3" />
+                              {aiLoading ? 'Writing...' : 'Write with AI'}
+                            </Button>
+                          </div>
                           <FormControl>
                             <Textarea
-                              rows={4}
-                              placeholder="Hi {{contact_name}}, this is a reminder..."
+                              rows={5}
+                              placeholder={
+                                form.watch('channel') === 'email'
+                                  ? 'Hi [Client Name], just a friendly reminder about your upcoming appointment...'
+                                  : 'Hi [Client Name], reminder: your appointment is tomorrow at [Time]. Reply STOP to opt out.'
+                              }
                               {...field}
                             />
                           </FormControl>
-                          <p className="text-xs text-muted-foreground">
-                            Available variables: {'{{contact_name}}'}, {'{{service_type}}'}, {'{{appointment_date}}'}, {'{{appointment_time}}'}
-                          </p>
+
+                          {/* Variable insert row */}
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span className="text-xs text-muted-foreground">Insert:</span>
+                            {[
+                              { label: 'Client name', value: '{{client_name}}' },
+                              { label: 'Date & time', value: '{{appointment_start_local}}' },
+                              { label: 'Service', value: '{{appointment_title}}' },
+                              { label: 'Location', value: '{{location_name}}' },
+                              ...(form.watch('channel') === 'email'
+                                ? [
+                                    { label: 'Confirm link', value: '{{confirm_url}}' },
+                                    { label: 'Reschedule link', value: '{{reschedule_url}}' },
+                                  ]
+                                : []),
+                            ].map((v) => (
+                              <button
+                                key={v.value}
+                                type="button"
+                                className="rounded border border-dashed px-1.5 py-0.5 text-xs text-muted-foreground hover:border-primary hover:text-primary transition-colors"
+                                onClick={() => {
+                                  const current = field.value || ''
+                                  const textarea = document.querySelector<HTMLTextAreaElement>('textarea[name="templateBody"]')
+                                  if (textarea) {
+                                    const start = textarea.selectionStart
+                                    const end = textarea.selectionEnd
+                                    const newVal = current.slice(0, start) + v.value + current.slice(end)
+                                    field.onChange(newVal)
+                                    setTimeout(() => {
+                                      textarea.selectionStart = textarea.selectionEnd = start + v.value.length
+                                      textarea.focus()
+                                    }, 0)
+                                  } else {
+                                    field.onChange(current + v.value)
+                                  }
+                                }}
+                              >
+                                + {v.label}
+                              </button>
+                            ))}
+                          </div>
                           <FormMessage />
                         </FormItem>
                       )}
                     />
                   </div>
+
                   <DialogFooter>
                     <Button type="submit" disabled={createRule.isPending}>
                       {createRule.isPending ? 'Creating...' : 'Create Rule'}

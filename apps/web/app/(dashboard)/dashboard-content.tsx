@@ -110,7 +110,7 @@ export function DashboardContent({ data }: Props) {
               const h = new Date().getHours()
               const period = h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening'
               const emoji = h < 12 ? '☀️' : h < 17 ? '👋' : '🌙'
-              return `${period}, Sarah! ${emoji}`
+              return `${period}, Admin! ${emoji}`
             })()}
           </h1>
           <p className="text-sm text-muted-foreground mt-0.5">Here&apos;s what&apos;s happening with your appointments today.</p>

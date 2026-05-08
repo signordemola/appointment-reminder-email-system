@@ -9,11 +9,13 @@ This repo is a `pnpm` + Turborepo monorepo with:
 
 ## What It Covers
 
+- Mock login gate with cookie-based session (see credentials below)
 - Admin dashboard with reminder activity, delivery failures, no-shows, and pending confirmations
 - Appointment roster, appointment detail timeline, and new appointment flow
 - CSV import for appointments with row-level validation feedback
+- Contact management with full CRUD (create, edit, soft delete)
 - Public confirmation and reschedule pages with expiring action tokens
-- Reminder rule management and manual dispatch of due reminders
+- Reminder rule management with custom email templates and manual dispatch
 - Resend-backed email delivery flow
 - AI reschedule triage for the inbox
 - AI reminder copy generation for transactional email drafts
@@ -86,7 +88,16 @@ cd apps/web
 pnpm dev
 ```
 
-Open `http://localhost:3000`. The root route redirects to `/dashboard`.
+Open `http://localhost:3000`. You'll be redirected to the login page.
+
+## Demo Login Credentials
+
+| Field    | Value                  |
+| -------- | ---------------------- |
+| Email    | `admin@remindflow.com` |
+| Password | `demo1234`             |
+
+These are hardcoded in the frontend — no real auth backend is needed. The credentials are also shown on the login page itself.
 
 ## Environment Variables
 
@@ -192,13 +203,16 @@ If you enable the web dashboard's manual dispatch control, `INTERNAL_JOB_SECRET`
 
 The cleanest recorded flow for a freelance portfolio demo is:
 
-1. Open the dashboard and show reminder activity, pending confirmations, and failures.
-2. Open the appointments list and detail timeline.
-3. Import a CSV batch.
-4. Dispatch due reminders from the dashboard.
-5. Open a seeded public confirm or reschedule link.
-6. Return to the reschedule inbox and run AI triage.
-7. Open settings and generate reminder copy with Gemini.
+1. Open the app and sign in with the demo credentials.
+2. Show the dashboard with reminder activity, pending confirmations, and failures.
+3. Open the appointments list and detail timeline.
+4. Import a CSV batch.
+5. Open the contacts page — edit a contact, then delete one (soft delete with confirmation).
+6. Dispatch due reminders from the dashboard.
+7. Open a seeded public confirm or reschedule link.
+8. Return to the reschedule inbox and run AI triage.
+9. Open settings and generate reminder copy with Gemini.
+10. Sign out from the sidebar user menu.
 
 ## Notes
 

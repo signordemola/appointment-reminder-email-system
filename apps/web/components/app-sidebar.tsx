@@ -1,5 +1,6 @@
 'use client'
 
+import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import {
@@ -70,8 +71,14 @@ const settingsNavItems = [
 
 export function AppSidebar() {
   const pathname = usePathname()
+  const router = useRouter()
   const { data } = useDashboardSummary()
   const pendingRescheduleCount = data?.metrics?.rescheduleRequests ?? 0
+
+  function handleSignOut() {
+    document.cookie = 'rf_session=; path=/; max-age=0'
+    router.push('/login')
+  }
 
   const managementNavItems = [
     {
@@ -184,15 +191,15 @@ export function AppSidebar() {
                   className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
                 >
                   <Avatar className="size-8 rounded-lg">
-                    <AvatarImage src="/avatars/admin.jpg" alt="Sarah Mitchell" />
+                    <AvatarImage src="/avatars/admin.jpg" alt="Admin" />
                     <AvatarFallback className="rounded-lg bg-primary/10 text-primary">
-                      SM
+                      AD
                     </AvatarFallback>
                   </Avatar>
                   <div className="grid flex-1 text-left text-sm leading-tight">
-                    <span className="truncate font-medium">Sarah Mitchell</span>
+                    <span className="truncate font-medium">Admin</span>
                     <span className="truncate text-xs text-muted-foreground">
-                      Glow Wellness Spa
+                      RemindFlow Demo
                     </span>
                   </div>
                   <ChevronsUpDown className="ml-auto size-4" />
@@ -207,24 +214,26 @@ export function AppSidebar() {
                 <DropdownMenuLabel className="p-0 font-normal">
                   <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
                     <Avatar className="size-8 rounded-lg">
-                      <AvatarImage src="/avatars/admin.jpg" alt="Sarah Mitchell" />
-                      <AvatarFallback className="rounded-lg">SM</AvatarFallback>
+                      <AvatarImage src="/avatars/admin.jpg" alt="Admin" />
+                      <AvatarFallback className="rounded-lg">AD</AvatarFallback>
                     </Avatar>
                     <div className="grid flex-1 text-left text-sm leading-tight">
-                      <span className="truncate font-medium">Sarah Mitchell</span>
+                      <span className="truncate font-medium">Admin</span>
                       <span className="truncate text-xs text-muted-foreground">
-                        sarah@glowwellness.com
+                        admin@remindflow.com
                       </span>
                     </div>
                   </div>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem>
-                  <Settings className="mr-2 size-4" />
-                  Account settings
+                <DropdownMenuItem asChild>
+                  <Link href="/settings">
+                    <Settings className="mr-2 size-4" />
+                    Account settings
+                  </Link>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem className="text-destructive focus:text-destructive">
+                <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={handleSignOut}>
                   <LogOut className="mr-2 size-4" />
                   Sign out
                 </DropdownMenuItem>

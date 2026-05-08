@@ -8,6 +8,7 @@ import {
   MessageSquare,
   MoreHorizontal,
   Phone,
+  Sparkles,
   X,
 } from 'lucide-react'
 import { DateTime } from 'luxon'
@@ -38,6 +39,7 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { cn } from '@/lib/utils'
 import { useRescheduleRequests, useReviewRescheduleRequest, type RescheduleRequest as ApiRescheduleRequest } from '@/lib/hooks/use-reschedule'
+import { useAiTriage, type AiTriageResult } from '@/lib/hooks/use-ai'
 import { Skeleton } from '@/components/ui/skeleton'
 import { toast } from 'sonner'
 
@@ -82,6 +84,21 @@ export function RescheduleContent({ initialRequests }: RescheduleContentProps) {
 
   const { data: apiRequests } = useRescheduleRequests(initialRequests)
   const reviewRequest = useReviewRescheduleRequest()
+  const aiTriage = useAiTriage()
+  const [triageResults, setTriageResults] = useState<Record<string, AiTriageResult>>({})
+  const [triageLoading, setTriageLoading] = useState<Record<string, boolean>>({})
+
+  const handleRunTriage = async (requestId: string) => {
+    setTriageLoading(prev => ({ ...prev, [requestId]: true }))
+    try {
+      const result = await aiTriage.mutateAsync(requestId)
+      setTriageResults(prev => ({ ...prev, [requestId]: result }))
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'AI analysis failed')
+    } finally {
+      setTriageLoading(prev => ({ ...prev, [requestId]: false }))
+    }
+  }
 
   const mapApiRequest = (apiReq: ApiRescheduleRequest): RescheduleRequest => ({
     id: apiReq.id,
@@ -294,6 +311,67 @@ export function RescheduleContent({ initialRequests }: RescheduleContentProps) {
                             <p className="mt-3 text-xs text-muted-foreground">
                               Submitted {DateTime.fromISO(request.submittedAt).toRelative()}
                             </p>
+
+                            {/* AI Triage Panel */}
+                            {triageResults[request.id] ? (
+                              <div className="mt-4 rounded-lg border border-primary/20 bg-primary/5 p-4 space-y-3">
+                                <div className="flex items-center gap-2">
+                                  <Sparkles className="size-4 text-primary" />
+                                  <p className="text-sm font-semibold text-primary">AI Analysis</p>
+                                </div>
+                                <div className="grid gap-2 sm:grid-cols-3">
+                                  <div>
+                                    <p className="text-xs text-muted-foreground">Urgency</p>
+                                    <Badge variant="outline" className={cn(
+                                      'mt-0.5',
+                                      triageResults[request.id].triage.urgency === 'high' && 'border-red-300 bg-red-50 text-red-700',
+                                      triageResults[request.id].triage.urgency === 'medium' && 'border-amber-300 bg-amber-50 text-amber-700',
+                                      triageResults[request.id].triage.urgency === 'low' && 'border-green-300 bg-green-50 text-green-700',
+                                    )}>
+                                      {triageResults[request.id].triage.urgency}
+                                    </Badge>
+                                  </div>
+                                  <div>
+                                    <p className="text-xs text-muted-foreground">Recommendation</p>
+                                    <p className="text-sm font-medium mt-0.5">
+                                      {triageResults[request.id].triage.recommendedAction.replace(/_/g, ' ')}
+                                    </p>
+                                  </div>
+                                  <div>
+                                    <p className="text-xs text-muted-foreground">Risk</p>
+                                    <p className="text-sm font-medium mt-0.5">
+                                      {triageResults[request.id].triage.operationalRisk}
+                                    </p>
+                                  </div>
+                                </div>
+                                <div>
+                                  <p className="text-xs text-muted-foreground">Summary</p>
+                                  <p className="text-sm mt-0.5">{triageResults[request.id].triage.adminSummary}</p>
+                                </div>
+                                <div>
+                                  <p className="text-xs text-muted-foreground">Suggested Reply</p>
+                                  <p className="text-sm mt-0.5 italic">&ldquo;{triageResults[request.id].triage.suggestedReply}&rdquo;</p>
+                                </div>
+                                {triageResults[request.id].triage.riskFlags.length > 0 && (
+                                  <div className="flex flex-wrap gap-1">
+                                    {triageResults[request.id].triage.riskFlags.map((flag, i) => (
+                                      <Badge key={i} variant="outline" className="text-xs">{flag}</Badge>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            ) : (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="mt-3 gap-2"
+                                onClick={() => handleRunTriage(request.id)}
+                                disabled={triageLoading[request.id]}
+                              >
+                                <Sparkles className="size-4" />
+                                {triageLoading[request.id] ? 'Analyzing...' : 'Analyze with AI'}
+                              </Button>
+                            )}
                           </div>
                         </div>
 

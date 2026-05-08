@@ -22,12 +22,15 @@ import {
   Download,
   Mail,
   MoreHorizontal,
+  Pencil,
   Phone,
   Plus,
   Search,
+  Trash2,
   Upload,
   User,
   Calendar,
+  AlertTriangle,
 } from 'lucide-react'
 import { DateTime } from 'luxon'
 
@@ -65,7 +68,7 @@ import {
 import { Label } from '@/components/ui/label'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Skeleton } from '@/components/ui/skeleton'
-import { useContacts, useCreateContact, type Contact as ApiContact } from '@/lib/hooks/use-contacts'
+import { useContacts, useCreateContact, useUpdateContact, useDeleteContact, type Contact as ApiContact } from '@/lib/hooks/use-contacts'
 import { toast } from 'sonner'
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 
@@ -117,6 +120,17 @@ export function ContactsContent({ initialContacts }: ContactsContentProps) {
 
   const { data: apiContacts } = useContacts(initialContacts)
   const createContact = useCreateContact()
+  const updateContact = useUpdateContact()
+  const deleteContact = useDeleteContact()
+  const [editContact, setEditContact] = useState<ContactTableRow | null>(null)
+  const [editDialogOpen, setEditDialogOpen] = useState(false)
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
+  const [contactToDelete, setContactToDelete] = useState<ContactTableRow | null>(null)
+
+  const editForm = useForm<ContactFormValues>({
+    resolver: zodResolver(contactFormSchema),
+    defaultValues: { fullName: '', email: '', phone: '' },
+  })
 
   const form = useForm<ContactFormValues>({
     resolver: zodResolver(contactFormSchema),
@@ -146,6 +160,46 @@ export function ContactsContent({ initialContacts }: ContactsContentProps) {
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to create contact')
     }
+  }
+
+  const handleEditContact = async (values: ContactFormValues) => {
+    if (!editContact) return
+    try {
+      await updateContact.mutateAsync({
+        id: editContact.id,
+        fullName: values.fullName,
+        email: values.email,
+        phone: values.phone || null,
+      })
+      toast.success('Contact updated successfully')
+      setEditDialogOpen(false)
+      setEditContact(null)
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to update contact')
+    }
+  }
+
+  const handleDeleteContact = async () => {
+    if (!contactToDelete) return
+    try {
+      await deleteContact.mutateAsync(contactToDelete.id)
+      toast.success(`${contactToDelete.name} has been removed`)
+      setDeleteConfirmOpen(false)
+      setContactToDelete(null)
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to delete contact')
+    }
+  }
+
+  const openEditDialog = (contact: ContactTableRow) => {
+    setEditContact(contact)
+    editForm.reset({ fullName: contact.name, email: contact.email, phone: contact.phone })
+    setEditDialogOpen(true)
+  }
+
+  const openDeleteConfirm = (contact: ContactTableRow) => {
+    setContactToDelete(contact)
+    setDeleteConfirmOpen(true)
   }
 
 
@@ -250,9 +304,9 @@ export function ContactsContent({ initialContacts }: ContactsContentProps) {
             <DropdownMenuContent align="end">
               <DropdownMenuLabel>Actions</DropdownMenuLabel>
               <DropdownMenuSeparator />
-              <DropdownMenuItem>
-                <User className="mr-2 size-4" />
-                View profile
+              <DropdownMenuItem onClick={() => openEditDialog(row.original)}>
+                <Pencil className="mr-2 size-4" />
+                Edit contact
               </DropdownMenuItem>
               <DropdownMenuItem>
                 <Calendar className="mr-2 size-4" />
@@ -262,9 +316,13 @@ export function ContactsContent({ initialContacts }: ContactsContentProps) {
                 <Mail className="mr-2 size-4" />
                 Send email
               </DropdownMenuItem>
-              <DropdownMenuItem>
-                <Phone className="mr-2 size-4" />
-                Call
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                className="text-destructive focus:text-destructive"
+                onClick={() => openDeleteConfirm(row.original)}
+              >
+                <Trash2 className="mr-2 size-4" />
+                Delete contact
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -504,6 +562,96 @@ export function ContactsContent({ initialContacts }: ContactsContentProps) {
           </CardContent>
         </Card>
       </div>
+
+      {/* ── Edit Contact Dialog ─────────────────────────────── */}
+      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Edit Contact</DialogTitle>
+            <DialogDescription>Update contact information.</DialogDescription>
+          </DialogHeader>
+          <Form {...editForm}>
+            <form onSubmit={editForm.handleSubmit(handleEditContact)} className="space-y-4">
+              <FormField
+                control={editForm.control}
+                name="fullName"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Full Name</FormLabel>
+                    <FormControl>
+                      <Input placeholder="John Doe" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={editForm.control}
+                name="email"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Email</FormLabel>
+                    <FormControl>
+                      <Input type="email" placeholder="john@example.com" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={editForm.control}
+                name="phone"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Phone (optional)</FormLabel>
+                    <FormControl>
+                      <Input type="tel" placeholder="+1 (555) 123-4567" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={() => setEditDialogOpen(false)}>
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={updateContact.isPending}>
+                  {updateContact.isPending ? 'Saving…' : 'Save Changes'}
+                </Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Delete Confirmation Dialog ──────────────────────── */}
+      <Dialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+        <DialogContent className="sm:max-w-[400px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="size-5 text-destructive" />
+              Delete Contact
+            </DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete{' '}
+              <span className="font-semibold text-foreground">{contactToDelete?.name}</span>?
+              This action can be undone by an administrator.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteConfirmOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleDeleteContact}
+              disabled={deleteContact.isPending}
+            >
+              {deleteContact.isPending ? 'Deleting…' : 'Delete'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   )
 }

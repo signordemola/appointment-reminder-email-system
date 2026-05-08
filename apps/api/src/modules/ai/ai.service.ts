@@ -63,24 +63,44 @@ export class AiService {
   }
 
   async generateReminderCopy(input: CreateReminderCopyInput) {
-    const reminderRule = await this.prisma.reminderRule.findUnique({
-      where: {
-        id: input.reminderRuleId,
-      },
-    });
+    let ruleContext: {
+      id: string;
+      name: string;
+      eventType: "confirmation_request" | "reminder" | "follow_up";
+      offsetMinutes: number;
+      active: boolean;
+    };
 
-    if (!reminderRule) {
-      throw new NotFoundException("Reminder rule not found.");
+    if (input.reminderRuleId) {
+      const reminderRule = await this.prisma.reminderRule.findUnique({
+        where: {
+          id: input.reminderRuleId,
+        },
+      });
+
+      if (!reminderRule) {
+        throw new NotFoundException("Reminder rule not found.");
+      }
+
+      ruleContext = {
+        id: reminderRule.id,
+        name: reminderRule.name,
+        eventType: reminderRule.eventType as "confirmation_request" | "reminder" | "follow_up",
+        offsetMinutes: reminderRule.offsetMinutes,
+        active: reminderRule.active,
+      };
+    } else {
+      ruleContext = {
+        id: "draft",
+        name: input.ruleName ?? "New Reminder",
+        eventType: (input.eventType ?? "reminder") as "reminder" | "confirmation_request" | "follow_up",
+        offsetMinutes: input.offsetMinutes ?? -1440,
+        active: false,
+      };
     }
 
     const result = await this.aiProviderService.generateReminderCopy({
-      reminderRule: {
-        id: reminderRule.id,
-        name: reminderRule.name,
-        eventType: reminderRule.eventType,
-        offsetMinutes: reminderRule.offsetMinutes,
-        active: reminderRule.active,
-      },
+      reminderRule: ruleContext,
       businessName: input.businessName,
       businessType: input.businessType,
       senderName: input.senderName,
@@ -92,13 +112,7 @@ export class AiService {
 
     return {
       generatedAt: new Date().toISOString(),
-      reminderRule: {
-        id: reminderRule.id,
-        name: reminderRule.name,
-        eventType: reminderRule.eventType,
-        offsetMinutes: reminderRule.offsetMinutes,
-        active: reminderRule.active,
-      },
+      reminderRule: ruleContext,
       provider: result.provider,
       model: result.model,
       draft: result.draft,

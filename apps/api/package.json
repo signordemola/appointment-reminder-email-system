@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "dev": "pnpm run build && node dist/main.js",
-    "build": "tsc",
+    "build": "prisma generate && tsc",
     "check-types": "tsc --noEmit",
     "start": "node dist/main.js",
     "db:generate": "prisma generate",

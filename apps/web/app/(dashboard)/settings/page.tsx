@@ -244,16 +244,16 @@ export default function SettingsPage() {
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="grid gap-2">
                     <Label htmlFor="first-name">First Name</Label>
-                    <Input id="first-name" defaultValue="Sarah" />
+                    <Input id="first-name" defaultValue="Admin" />
                   </div>
                   <div className="grid gap-2">
                     <Label htmlFor="last-name">Last Name</Label>
-                    <Input id="last-name" defaultValue="Mitchell" />
+                    <Input id="last-name" defaultValue="" />
                   </div>
                 </div>
                 <div className="grid gap-2">
                   <Label htmlFor="email">Email Address</Label>
-                  <Input id="email" type="email" defaultValue="sarah@glowwellness.com" />
+                  <Input id="email" type="email" defaultValue="admin@remindflow.com" />
                 </div>
               </CardContent>
             </Card>
@@ -285,9 +285,9 @@ export default function SettingsPage() {
 
             <Card className="card-elevated border-destructive/50">
               <CardHeader>
-                <CardTitle className="text-destructive">Danger Zone</CardTitle>
+                <CardTitle className="text-destructive">Delete Account</CardTitle>
                 <CardDescription>
-                  Irreversible actions that affect your account.
+                  Permanently delete your account and all data. This cannot be undone.
                 </CardDescription>
               </CardHeader>
               <CardContent>

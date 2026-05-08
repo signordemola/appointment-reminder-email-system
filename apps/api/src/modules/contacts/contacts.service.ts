@@ -59,6 +59,9 @@ export class ContactsService {
 
   async findAll() {
     const contacts = await this.prisma.contact.findMany({
+      where: {
+        deletedAt: null,
+      },
       orderBy: {
         fullName: "asc",
       },
@@ -104,6 +107,29 @@ export class ContactsService {
         timezone: input.timezone,
         emailOptOut: input.emailOptOut,
       },
+    });
+  }
+
+  update(
+    contactId: string,
+    input: {
+      fullName?: string;
+      email?: string;
+      phone?: string | null;
+      timezone?: string;
+      emailOptOut?: boolean;
+    },
+  ) {
+    return this.prisma.contact.update({
+      where: { id: contactId },
+      data: input,
+    });
+  }
+
+  softDelete(contactId: string) {
+    return this.prisma.contact.update({
+      where: { id: contactId },
+      data: { deletedAt: new Date() },
     });
   }
 }

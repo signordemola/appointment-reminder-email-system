@@ -174,14 +174,12 @@ export default function AppointmentDetailPage() {
           { label: 'Appointments', href: '/appointments' },
           { label: appt.title },
         ]}
-        actions={
-          <Button variant="outline" size="sm" onClick={() => router.push('/appointments')}>
-            <ArrowLeft className="mr-2 size-4" />
-            Back
-          </Button>
-        }
       />
       <div className="flex flex-1 flex-col gap-6 p-6">
+        <Button variant="outline" size="sm" className="w-fit" onClick={() => router.push('/appointments')}>
+          <ArrowLeft className="mr-2 size-4" />
+          Back
+        </Button>
 
         {/* Top: Appointment + Contact Info */}
         <div className="grid gap-6 lg:grid-cols-3">
@@ -278,12 +276,12 @@ export default function AppointmentDetailPage() {
           <CardHeader>
             <CardTitle className="text-base">Reminder Timeline</CardTitle>
             <CardDescription>
-              {appt.reminderEvents.length} reminder event{appt.reminderEvents.length !== 1 ? 's' : ''}
+              {appt.reminderEvents.length} reminder{appt.reminderEvents.length !== 1 ? 's' : ''}
             </CardDescription>
           </CardHeader>
           <CardContent>
             {appt.reminderEvents.length === 0 ? (
-              <p className="text-sm text-muted-foreground py-4 text-center">No reminder events yet.</p>
+              <p className="text-sm text-muted-foreground py-4 text-center">No reminders yet.</p>
             ) : (
               <div className="space-y-3">
                 {appt.reminderEvents.map((event, i) => {
@@ -318,7 +316,7 @@ export default function AppointmentDetailPage() {
                         )}
                         {event.providerMessageId && (
                           <p className="text-xs text-muted-foreground font-mono truncate">
-                            ID: {event.providerMessageId}
+                            Tracking ID: {event.providerMessageId}
                           </p>
                         )}
                       </div>
