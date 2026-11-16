@@ -1,9 +1,9 @@
-'use client'
+"use client";
 
-import { useState, useMemo, useRef } from 'react'
-import { useForm } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
-import * as z from 'zod'
+import { useState, useMemo, useRef } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
 import {
   useReactTable,
   getCoreRowModel,
@@ -14,7 +14,7 @@ import {
   type ColumnDef,
   type SortingState,
   type ColumnFiltersState,
-} from '@tanstack/react-table'
+} from "@tanstack/react-table";
 import {
   Calendar,
   ChevronDown,
@@ -32,15 +32,21 @@ import {
   Upload,
   User,
   X,
-} from 'lucide-react'
-import { DateTime } from 'luxon'
+} from "lucide-react";
+import { DateTime } from "luxon";
 
-import { Header } from '@/components/header'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Badge } from '@/components/ui/badge'
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Header } from "@/components/header";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import {
   Table,
   TableBody,
@@ -48,7 +54,7 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from '@/components/ui/table'
+} from "@/components/ui/table";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -57,14 +63,14 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
   DropdownMenuCheckboxItem,
-} from '@/components/ui/dropdown-menu'
+} from "@/components/ui/dropdown-menu";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select'
+} from "@/components/ui/select";
 import {
   Dialog,
   DialogContent,
@@ -73,164 +79,224 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from '@/components/ui/dialog'
-import { Label } from '@/components/ui/label'
-import { Checkbox } from '@/components/ui/checkbox'
-import { cn } from '@/lib/utils'
-import { useAppointments, useCreateAppointment, useImportAppointments, type Appointment as ApiAppointment } from '@/lib/hooks/use-appointments'
-import { useContacts } from '@/lib/hooks/use-contacts'
-import { Skeleton } from '@/components/ui/skeleton'
-import { toast } from 'sonner'
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
+import { cn } from "@/lib/utils";
+import {
+  useAppointments,
+  useCreateAppointment,
+  useImportAppointments,
+  type Appointment as ApiAppointment,
+} from "@/lib/hooks/use-appointments";
+import { useContacts } from "@/lib/hooks/use-contacts";
+import { Skeleton } from "@/components/ui/skeleton";
+import { toast } from "sonner";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
 
 const appointmentFormSchema = z.object({
-  clientId: z.string().min(1, 'Please select a client'),
-  service: z.string().min(1, 'Please select a service'),
-  date: z.string().min(1, 'Please select a date'),
-  time: z.string().min(1, 'Please select a time'),
-})
+  clientId: z.string().min(1, "Please select a client"),
+  service: z.string().min(1, "Please select a service"),
+  date: z.string().min(1, "Please select a date"),
+  time: z.string().min(1, "Please select a time"),
+});
 
-type AppointmentFormValues = z.infer<typeof appointmentFormSchema>
+type AppointmentFormValues = z.infer<typeof appointmentFormSchema>;
 
 // Types - extending from API
 interface Appointment {
-  id: string
+  id: string;
   client: {
-    name: string
-    email: string
-    phone: string
-    avatar: string | null
-    initials: string
-  }
-  service: string
-  datetime: string
-  duration: number
-  status: 'scheduled' | 'confirmed' | 'cancelled' | 'no-show' | 'completed' | 'rescheduled'
-  remindersSent: number
-  notes?: string
+    name: string;
+    email: string;
+    phone: string;
+    avatar: string | null;
+    initials: string;
+  };
+  service: string;
+  datetime: string;
+  duration: number;
+  status:
+    | "scheduled"
+    | "confirmed"
+    | "cancelled"
+    | "no-show"
+    | "completed"
+    | "rescheduled";
+  remindersSent: number;
+  notes?: string;
 }
 
 // Map API appointment to table format
 function mapApiAppointment(apiAppt: ApiAppointment): Appointment {
   const duration = apiAppt.endsAtUtc
-    ? Math.round((new Date(apiAppt.endsAtUtc).getTime() - new Date(apiAppt.startsAtUtc).getTime()) / 60000)
-    : 60
-  
-  const sentReminders = apiAppt.reminderEvents?.filter(e => 
-    e.status === 'sent' || e.status === 'delivered' || e.status === 'opened' || e.status === 'clicked'
-  ).length ?? 0
+    ? Math.round(
+        (new Date(apiAppt.endsAtUtc).getTime() -
+          new Date(apiAppt.startsAtUtc).getTime()) /
+          60000,
+      )
+    : 60;
 
-  const statusMap: Record<string, Appointment['status']> = {
-    scheduled: 'scheduled',
-    confirmed: 'confirmed',
-    canceled: 'cancelled',
-    no_show: 'no-show',
-    completed: 'completed',
-    reschedule_requested: 'rescheduled',
-  }
+  const sentReminders =
+    apiAppt.reminderEvents?.filter(
+      (e) =>
+        e.status === "sent" ||
+        e.status === "delivered" ||
+        e.status === "opened" ||
+        e.status === "clicked",
+    ).length ?? 0;
+
+  const statusMap: Record<string, Appointment["status"]> = {
+    scheduled: "scheduled",
+    confirmed: "confirmed",
+    canceled: "cancelled",
+    no_show: "no-show",
+    completed: "completed",
+    reschedule_requested: "rescheduled",
+  };
 
   return {
     id: apiAppt.id,
     client: {
       name: apiAppt.contact.fullName,
       email: apiAppt.contact.email,
-      phone: apiAppt.contact.phone || '',
+      phone: apiAppt.contact.phone || "",
       avatar: null,
-      initials: apiAppt.contact.fullName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2),
+      initials: apiAppt.contact.fullName
+        .split(" ")
+        .map((n) => n[0])
+        .join("")
+        .toUpperCase()
+        .slice(0, 2),
     },
     service: apiAppt.title,
     datetime: apiAppt.startsAtUtc,
     duration,
-    status: statusMap[apiAppt.status] ?? 'scheduled',
+    status: statusMap[apiAppt.status] ?? "scheduled",
     remindersSent: sentReminders,
-  }
+  };
 }
 
-const statusConfig: Record<Appointment['status'], { label: string; style: React.CSSProperties }> = {
-  scheduled: { label: 'Scheduled', style: { backgroundColor: 'rgba(107,114,128,0.1)', color: '#6b7280' } },
-  confirmed: { label: 'Confirmed', style: { backgroundColor: 'rgba(22,163,74,0.1)', color: '#16a34a' } },
-  cancelled: { label: 'Cancelled', style: { backgroundColor: 'rgba(220,38,38,0.1)', color: '#dc2626' } },
-  'no-show': { label: 'No Show', style: { backgroundColor: 'rgba(234,88,12,0.1)', color: '#ea580c' } },
-  completed: { label: 'Completed', style: { backgroundColor: 'rgba(107,114,128,0.1)', color: '#374151' } },
-  rescheduled: { label: 'Rescheduled', style: { backgroundColor: 'rgba(217,119,6,0.1)', color: '#d97706' } },
-}
+const statusConfig: Record<
+  Appointment["status"],
+  { label: string; style: React.CSSProperties }
+> = {
+  scheduled: {
+    label: "Scheduled",
+    style: { backgroundColor: "rgba(107,114,128,0.1)", color: "#6b7280" },
+  },
+  confirmed: {
+    label: "Confirmed",
+    style: { backgroundColor: "rgba(22,163,74,0.1)", color: "#16a34a" },
+  },
+  cancelled: {
+    label: "Cancelled",
+    style: { backgroundColor: "rgba(220,38,38,0.1)", color: "#dc2626" },
+  },
+  "no-show": {
+    label: "No Show",
+    style: { backgroundColor: "rgba(234,88,12,0.1)", color: "#ea580c" },
+  },
+  completed: {
+    label: "Completed",
+    style: { backgroundColor: "rgba(107,114,128,0.1)", color: "#374151" },
+  },
+  rescheduled: {
+    label: "Rescheduled",
+    style: { backgroundColor: "rgba(217,119,6,0.1)", color: "#d97706" },
+  },
+};
 
 function formatRelativeDate(isoString: string) {
-  const dt = DateTime.fromISO(isoString)
-  const now = DateTime.now()
-  const diff = dt.startOf('day').diff(now.startOf('day'), 'days').days
+  const dt = DateTime.fromISO(isoString);
+  const now = DateTime.now();
+  const diff = dt.startOf("day").diff(now.startOf("day"), "days").days;
 
-  if (diff === 0) return 'Today'
-  if (diff === 1) return 'Tomorrow'
-  if (diff === -1) return 'Yesterday'
-  if (diff > 1 && diff <= 7) return dt.toFormat('EEEE')
-  return dt.toFormat('MMM d')
+  if (diff === 0) return "Today";
+  if (diff === 1) return "Tomorrow";
+  if (diff === -1) return "Yesterday";
+  if (diff > 1 && diff <= 7) return dt.toFormat("EEEE");
+  return dt.toFormat("MMM d");
 }
 
 export default function AppointmentsPage() {
-  const [sorting, setSorting] = useState<SortingState>([])
-  const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
-  const [globalFilter, setGlobalFilter] = useState('')
-  const [statusFilter, setStatusFilter] = useState<string>('all')
-  const [rowSelection, setRowSelection] = useState({})
-  const [dialogOpen, setDialogOpen] = useState(false)
+  const [sorting, setSorting] = useState<SortingState>([]);
+  const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
+  const [globalFilter, setGlobalFilter] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [rowSelection, setRowSelection] = useState({});
+  const [dialogOpen, setDialogOpen] = useState(false);
 
   const form = useForm<AppointmentFormValues>({
     resolver: zodResolver(appointmentFormSchema),
     defaultValues: {
-      clientId: '',
-      service: '',
-      date: '',
-      time: '',
+      clientId: "",
+      service: "",
+      date: "",
+      time: "",
     },
-  })
+  });
 
-  const { data, isLoading, error } = useAppointments({ 
-    page: 1, 
+  const { data, isLoading, error } = useAppointments({
+    page: 1,
     pageSize: 100,
-    status: statusFilter === 'all' ? undefined : statusFilter 
-  })
-  const { data: contactsData } = useContacts()
-  const createAppointment = useCreateAppointment()
-  const importAppointments = useImportAppointments()
-  const fileInputRef = useRef<HTMLInputElement>(null)
+    status: statusFilter === "all" ? undefined : statusFilter,
+  });
+  const { data: contactsData } = useContacts();
+  const createAppointment = useCreateAppointment();
+  const importAppointments = useImportAppointments();
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
+    const file = e.target.files?.[0];
+    if (!file) return;
     try {
-      const result = await importAppointments.mutateAsync(file)
-      toast.success(`Imported ${result.imported} appointment${result.imported !== 1 ? 's' : ''}${result.failed > 0 ? `. ${result.failed} failed.` : ''}`)
+      const result = await importAppointments.mutateAsync(file);
+      toast.success(
+        `Imported ${result.imported} appointment${result.imported !== 1 ? "s" : ""}${result.failed > 0 ? `. ${result.failed} failed.` : ""}`,
+      );
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Import failed')
+      toast.error(err instanceof Error ? err.message : "Import failed");
     }
-    if (fileInputRef.current) fileInputRef.current.value = ''
-  }
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
 
   const appointments = useMemo(() => {
-    return data?.items.map(mapApiAppointment) ?? []
-  }, [data])
+    return data?.items.map(mapApiAppointment) ?? [];
+  }, [data]);
 
   const filteredData = useMemo(() => {
-    if (!globalFilter) return appointments
-    const search = globalFilter.toLowerCase()
-    return appointments.filter((a) =>
-      a.client.name.toLowerCase().includes(search) ||
-      a.client.email.toLowerCase().includes(search) ||
-      a.service.toLowerCase().includes(search)
-    )
-  }, [appointments, globalFilter])
+    if (!globalFilter) return appointments;
+    const search = globalFilter.toLowerCase();
+    return appointments.filter(
+      (a) =>
+        a.client.name.toLowerCase().includes(search) ||
+        a.client.email.toLowerCase().includes(search) ||
+        a.service.toLowerCase().includes(search),
+    );
+  }, [appointments, globalFilter]);
 
   const handleCreateAppointment = async (values: AppointmentFormValues) => {
-    const contact = contactsData?.find(c => c.id === values.clientId)
+    const contact = contactsData?.find((c) => c.id === values.clientId);
     if (!contact) {
-      toast.error('Selected client not found')
-      return
+      toast.error("Selected client not found");
+      return;
     }
 
-    const startsAt = DateTime.fromISO(`${values.date}T${values.time}`)
-    const duration = values.service.includes('90') ? 90 : values.service.includes('75') ? 75 : 60
-    const endsAt = startsAt.plus({ minutes: duration })
+    const startsAt = DateTime.fromISO(`${values.date}T${values.time}`);
+    const duration = values.service.includes("90")
+      ? 90
+      : values.service.includes("75")
+        ? 75
+        : 60;
+    const endsAt = startsAt.plus({ minutes: duration });
 
     try {
       await createAppointment.mutateAsync({
@@ -239,43 +305,31 @@ export default function AppointmentsPage() {
         phone: contact.phone,
         contactTimezone: contact.timezone,
         emailOptOut: contact.emailOptOut,
-        title: values.service.split('(')[0].trim(),
-        startsAtUtc: startsAt.toUTC().toISO() || '',
-        endsAtUtc: endsAt.toUTC().toISO() || '',
+        title: values.service.split("(")[0].trim(),
+        startsAtUtc: startsAt.toUTC().toISO() || "",
+        endsAtUtc: endsAt.toUTC().toISO() || "",
         displayTimezone: contact.timezone,
-      })
-      toast.success('Appointment created successfully')
-      setDialogOpen(false)
-      form.reset()
+      });
+      toast.success("Appointment created successfully");
+      setDialogOpen(false);
+      form.reset();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Failed to create appointment')
+      toast.error(
+        err instanceof Error ? err.message : "Failed to create appointment",
+      );
     }
-  }
-
-  if (error) {
-    return (
-      <>
-        <Header title="Appointments" breadcrumbs={[{ label: 'Dashboard', href: '/' }, { label: 'Appointments' }]} />
-        <div className="flex flex-1 flex-col gap-4 p-6">
-          <Card>
-            <CardContent className="p-6">
-              <p className="text-destructive">Failed to load appointments.</p>
-              <p className="text-sm text-muted-foreground">{error.message}</p>
-            </CardContent>
-          </Card>
-        </div>
-      </>
-    )
-  }
+  };
 
   const columns: ColumnDef<Appointment>[] = useMemo(
     () => [
       {
-        id: 'select',
+        id: "select",
         header: ({ table }) => (
           <Checkbox
             checked={table.getIsAllPageRowsSelected()}
-            onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
+            onCheckedChange={(value) =>
+              table.toggleAllPageRowsSelected(!!value)
+            }
             aria-label="Select all"
           />
         ),
@@ -290,10 +344,10 @@ export default function AppointmentsPage() {
         enableHiding: false,
       },
       {
-        accessorKey: 'client',
-        header: 'Client',
+        accessorKey: "client",
+        header: "Client",
         cell: ({ row }) => {
-          const client = row.original.client
+          const client = row.original.client;
           return (
             <div className="flex items-center gap-3">
               <Avatar className="size-9 ring-2 ring-transparent transition-all group-hover:ring-primary/30">
@@ -307,58 +361,71 @@ export default function AppointmentsPage() {
                 <p className="text-xs text-muted-foreground">{client.email}</p>
               </div>
             </div>
-          )
+          );
         },
         filterFn: (row, id, value) => {
-          const client = row.original.client
+          const client = row.original.client;
           return (
             client.name.toLowerCase().includes(value.toLowerCase()) ||
             client.email.toLowerCase().includes(value.toLowerCase())
-          )
+          );
         },
       },
       {
-        accessorKey: 'service',
-        header: 'Service',
+        accessorKey: "service",
+        header: "Service",
         cell: ({ row }) => (
           <div>
             <p className="font-medium">{row.original.service}</p>
-            <p className="text-xs text-muted-foreground">{row.original.duration} min</p>
+            <p className="text-xs text-muted-foreground">
+              {row.original.duration} min
+            </p>
           </div>
         ),
       },
       {
-        accessorKey: 'datetime',
-        header: 'Date & Time',
+        accessorKey: "datetime",
+        header: "Date & Time",
         cell: ({ row }) => {
-          const dt = DateTime.fromISO(row.original.datetime)
+          const dt = DateTime.fromISO(row.original.datetime);
           return (
             <div>
-              <p className="font-medium">{formatRelativeDate(row.original.datetime)}</p>
-              <p className="text-xs text-muted-foreground">{dt.toFormat('h:mm a')}</p>
+              <p className="font-medium">
+                {formatRelativeDate(row.original.datetime)}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                {dt.toFormat("h:mm a")}
+              </p>
             </div>
-          )
+          );
         },
         sortingFn: (rowA, rowB) => {
-          return DateTime.fromISO(rowA.original.datetime).toMillis() - DateTime.fromISO(rowB.original.datetime).toMillis()
+          return (
+            DateTime.fromISO(rowA.original.datetime).toMillis() -
+            DateTime.fromISO(rowB.original.datetime).toMillis()
+          );
         },
       },
       {
-        accessorKey: 'status',
-        header: 'Status',
+        accessorKey: "status",
+        header: "Status",
         cell: ({ row }) => {
-          const status = row.original.status
-          const config = statusConfig[status]
+          const status = row.original.status;
+          const config = statusConfig[status];
           return (
-            <Badge variant="outline" className="text-xs border-transparent font-medium" style={config.style}>
+            <Badge
+              variant="outline"
+              className="text-xs border-transparent font-medium"
+              style={config.style}
+            >
               {config.label}
             </Badge>
-          )
+          );
         },
       },
       {
-        accessorKey: 'remindersSent',
-        header: 'Reminders',
+        accessorKey: "remindersSent",
+        header: "Reminders",
         cell: ({ row }) => (
           <div className="flex items-center gap-1">
             <Mail className="size-3 text-muted-foreground" />
@@ -367,7 +434,7 @@ export default function AppointmentsPage() {
         ),
       },
       {
-        id: 'actions',
+        id: "actions",
         cell: ({ row }) => (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -379,7 +446,11 @@ export default function AppointmentsPage() {
             <DropdownMenuContent align="end">
               <DropdownMenuLabel>Actions</DropdownMenuLabel>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => window.location.href = `/appointments/${row.original.id}`}>
+              <DropdownMenuItem
+                onClick={() =>
+                  (window.location.href = `/appointments/${row.original.id}`)
+                }
+              >
                 <User className="mr-2 size-4" />
                 View details
               </DropdownMenuItem>
@@ -405,8 +476,8 @@ export default function AppointmentsPage() {
         ),
       },
     ],
-    []
-  )
+    [],
+  );
 
   const table = useReactTable({
     data: filteredData,
@@ -420,14 +491,14 @@ export default function AppointmentsPage() {
     onRowSelectionChange: setRowSelection,
     onGlobalFilterChange: setGlobalFilter,
     globalFilterFn: (row, columnId, filterValue) => {
-      const client = row.original.client
-      const service = row.original.service
-      const searchValue = filterValue.toLowerCase()
+      const client = row.original.client;
+      const service = row.original.service;
+      const searchValue = filterValue.toLowerCase();
       return (
         client.name.toLowerCase().includes(searchValue) ||
         client.email.toLowerCase().includes(searchValue) ||
         service.toLowerCase().includes(searchValue)
-      )
+      );
     },
     state: {
       sorting,
@@ -440,17 +511,39 @@ export default function AppointmentsPage() {
         pageSize: 10,
       },
     },
-  })
+  });
 
-  const selectedCount = Object.keys(rowSelection).length
+  const selectedCount = Object.keys(rowSelection).length;
+
+  if (error) {
+    return (
+      <>
+        <Header
+          title="Appointments"
+          breadcrumbs={[
+            { label: "Dashboard", href: "/" },
+            { label: "Appointments" },
+          ]}
+        />
+        <div className="flex flex-1 flex-col gap-4 p-6">
+          <Card>
+            <CardContent className="p-6">
+              <p className="text-destructive">Failed to load appointments.</p>
+              <p className="text-sm text-muted-foreground">{error.message}</p>
+            </CardContent>
+          </Card>
+        </div>
+      </>
+    );
+  }
 
   return (
     <>
       <Header
         title="Appointments"
         breadcrumbs={[
-          { label: 'Dashboard', href: '/' },
-          { label: 'Appointments' },
+          { label: "Dashboard", href: "/" },
+          { label: "Appointments" },
         ]}
       />
 
@@ -458,8 +551,12 @@ export default function AppointmentsPage() {
         {/* ── Page Heading ─────────────────────────────────── */}
         <div className="flex items-start justify-between gap-4 mb-2">
           <div className="hidden sm:block">
-            <h1 className="text-2xl font-bold tracking-tight text-primary">Appointments</h1>
-            <p className="text-sm text-muted-foreground mt-0.5">View and manage all your scheduled appointments.</p>
+            <h1 className="text-2xl font-bold tracking-tight text-primary">
+              Appointments
+            </h1>
+            <p className="text-sm text-muted-foreground mt-0.5">
+              View and manage all your scheduled appointments.
+            </p>
           </div>
           <div className="flex items-center gap-2 ml-auto sm:ml-0">
             <input
@@ -477,7 +574,7 @@ export default function AppointmentsPage() {
               disabled={importAppointments.isPending}
             >
               <Upload className="mr-2 size-4" />
-              {importAppointments.isPending ? 'Importing...' : 'Import'}
+              {importAppointments.isPending ? "Importing..." : "Import"}
             </Button>
             <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
               <DialogTrigger asChild>
@@ -504,13 +601,21 @@ export default function AppointmentsPage() {
                           <FormItem>
                             <FormLabel>Client</FormLabel>
                             <FormControl>
-                              <Select value={field.value} onValueChange={field.onChange}>
+                              <Select
+                                value={field.value}
+                                onValueChange={field.onChange}
+                              >
                                 <SelectTrigger>
                                   <SelectValue placeholder="Select a client" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                  {contactsData?.map(contact => (
-                                    <SelectItem key={contact.id} value={contact.id}>{contact.fullName}</SelectItem>
+                                  {contactsData?.map((contact) => (
+                                    <SelectItem
+                                      key={contact.id}
+                                      value={contact.id}
+                                    >
+                                      {contact.fullName}
+                                    </SelectItem>
                                   ))}
                                 </SelectContent>
                               </Select>
@@ -526,15 +631,26 @@ export default function AppointmentsPage() {
                           <FormItem>
                             <FormLabel>Service</FormLabel>
                             <FormControl>
-                              <Select value={field.value} onValueChange={field.onChange}>
+                              <Select
+                                value={field.value}
+                                onValueChange={field.onChange}
+                              >
                                 <SelectTrigger>
                                   <SelectValue placeholder="Select a service" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                  <SelectItem value="Deep Tissue Massage (60 min)">Deep Tissue Massage (60 min)</SelectItem>
-                                  <SelectItem value="Swedish Massage (90 min)">Swedish Massage (90 min)</SelectItem>
-                                  <SelectItem value="Hot Stone Therapy (75 min)">Hot Stone Therapy (75 min)</SelectItem>
-                                  <SelectItem value="Sports Massage (60 min)">Sports Massage (60 min)</SelectItem>
+                                  <SelectItem value="Deep Tissue Massage (60 min)">
+                                    Deep Tissue Massage (60 min)
+                                  </SelectItem>
+                                  <SelectItem value="Swedish Massage (90 min)">
+                                    Swedish Massage (90 min)
+                                  </SelectItem>
+                                  <SelectItem value="Hot Stone Therapy (75 min)">
+                                    Hot Stone Therapy (75 min)
+                                  </SelectItem>
+                                  <SelectItem value="Sports Massage (60 min)">
+                                    Sports Massage (60 min)
+                                  </SelectItem>
                                 </SelectContent>
                               </Select>
                             </FormControl>
@@ -572,8 +688,13 @@ export default function AppointmentsPage() {
                       </div>
                     </div>
                     <DialogFooter>
-                      <Button type="submit" disabled={createAppointment.isPending}>
-                        {createAppointment.isPending ? 'Creating...' : 'Create Appointment'}
+                      <Button
+                        type="submit"
+                        disabled={createAppointment.isPending}
+                      >
+                        {createAppointment.isPending
+                          ? "Creating..."
+                          : "Create Appointment"}
                       </Button>
                     </DialogFooter>
                   </form>
@@ -607,7 +728,9 @@ export default function AppointmentsPage() {
                     <SelectItem value="canceled">Cancelled</SelectItem>
                     <SelectItem value="no_show">No Show</SelectItem>
                     <SelectItem value="completed">Completed</SelectItem>
-                    <SelectItem value="reschedule_requested">Rescheduled</SelectItem>
+                    <SelectItem value="reschedule_requested">
+                      Rescheduled
+                    </SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -636,7 +759,7 @@ export default function AppointmentsPage() {
                             ? null
                             : flexRender(
                                 header.column.columnDef.header,
-                                header.getContext()
+                                header.getContext(),
                               )}
                         </TableHead>
                       ))}
@@ -647,7 +770,9 @@ export default function AppointmentsPage() {
                   {isLoading ? (
                     Array.from({ length: 5 }).map((_, i) => (
                       <TableRow key={i}>
-                        <TableCell><Skeleton className="h-4 w-4" /></TableCell>
+                        <TableCell>
+                          <Skeleton className="h-4 w-4" />
+                        </TableCell>
                         <TableCell>
                           <div className="flex items-center gap-3">
                             <Skeleton className="size-8 rounded-full" />
@@ -669,28 +794,32 @@ export default function AppointmentsPage() {
                             <Skeleton className="h-3 w-12" />
                           </div>
                         </TableCell>
-                        <TableCell><Skeleton className="h-6 w-20" /></TableCell>
+                        <TableCell>
+                          <Skeleton className="h-6 w-20" />
+                        </TableCell>
                         <TableCell>
                           <div className="flex items-center gap-1">
                             <Skeleton className="size-3" />
                             <Skeleton className="h-4 w-4" />
                           </div>
                         </TableCell>
-                        <TableCell><Skeleton className="h-8 w-8" /></TableCell>
+                        <TableCell>
+                          <Skeleton className="h-8 w-8" />
+                        </TableCell>
                       </TableRow>
                     ))
                   ) : table.getRowModel().rows?.length ? (
                     table.getRowModel().rows.map((row) => (
                       <TableRow
                         key={row.id}
-                        data-state={row.getIsSelected() && 'selected'}
+                        data-state={row.getIsSelected() && "selected"}
                         className="group cursor-pointer transition-colors hover:bg-muted/40"
                       >
                         {row.getVisibleCells().map((cell) => (
                           <TableCell key={cell.id}>
                             {flexRender(
                               cell.column.columnDef.cell,
-                              cell.getContext()
+                              cell.getContext(),
                             )}
                           </TableCell>
                         ))}
@@ -698,11 +827,18 @@ export default function AppointmentsPage() {
                     ))
                   ) : (
                     <TableRow>
-                      <TableCell colSpan={columns.length} className="h-40 text-center">
+                      <TableCell
+                        colSpan={columns.length}
+                        className="h-40 text-center"
+                      >
                         <div className="flex flex-col items-center gap-3 text-muted-foreground">
                           <Calendar className="size-10 opacity-20" />
-                          <p className="text-sm font-medium">No appointments found</p>
-                          <p className="text-xs">Create a new appointment or adjust your filters</p>
+                          <p className="text-sm font-medium">
+                            No appointments found
+                          </p>
+                          <p className="text-xs">
+                            Create a new appointment or adjust your filters
+                          </p>
                         </div>
                       </TableCell>
                     </TableRow>
@@ -714,11 +850,16 @@ export default function AppointmentsPage() {
             {/* Pagination */}
             <div className="flex items-center justify-between pt-4">
               <p className="text-sm text-muted-foreground">
-                Showing {table.getState().pagination.pageIndex * table.getState().pagination.pageSize + 1} to{' '}
+                Showing{" "}
+                {table.getState().pagination.pageIndex *
+                  table.getState().pagination.pageSize +
+                  1}{" "}
+                to{" "}
                 {Math.min(
-                  (table.getState().pagination.pageIndex + 1) * table.getState().pagination.pageSize,
-                  table.getFilteredRowModel().rows.length
-                )}{' '}
+                  (table.getState().pagination.pageIndex + 1) *
+                    table.getState().pagination.pageSize,
+                  table.getFilteredRowModel().rows.length,
+                )}{" "}
                 of {table.getFilteredRowModel().rows.length} appointments
               </p>
               <div className="flex items-center gap-2">
@@ -741,7 +882,7 @@ export default function AppointmentsPage() {
                   <ChevronLeft className="size-4" />
                 </Button>
                 <span className="text-sm">
-                  Page {table.getState().pagination.pageIndex + 1} of{' '}
+                  Page {table.getState().pagination.pageIndex + 1} of{" "}
                   {table.getPageCount()}
                 </span>
                 <Button
@@ -768,5 +909,5 @@ export default function AppointmentsPage() {
         </Card>
       </div>
     </>
-  )
+  );
 }

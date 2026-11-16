@@ -1,6 +1,6 @@
 # Appointment Reminder Email System
 
-A demo app that sends appointment reminder emails and lets clients confirm or ask to reschedule from the email.
+An app that sends appointment reminder emails and lets clients confirm or ask to reschedule from the email.
 
 ![Reminder dashboard](docs/screenshot.png)
 
@@ -21,7 +21,7 @@ This app plans the reminders, sends them by email, and shows staff the replies i
 - Reschedule inbox for staff.
 - Email sending through Resend, and a Resend webhook endpoint that records delivery events.
 - AI reschedule triage and AI reminder copy drafts with Google Gemini. These need a Gemini API key.
-- Demo login screen. The credentials are fixed in the frontend and shown on the login page.
+- Sign-in screen with fixed credentials. They are set in the frontend and shown on the sign-in page.
 
 ## Tech stack
 
@@ -62,7 +62,7 @@ You need:
    cp apps/web/.env.example apps/web/.env.local
    ```
 
-3. Generate the Prisma client, create the tables and add demo data:
+3. Generate the Prisma client, create the tables and add sample data:
 
    ```bash
    pnpm --filter api run db:generate
@@ -85,7 +85,7 @@ You need:
    pnpm dev
    ```
 
-Open `http://localhost:3000`. The app sends you to the login page, which shows the demo credentials.
+Open `http://localhost:3000`. The app sends you to the login page, which shows the sign-in credentials.
 
 ### Environment variables
 
@@ -121,6 +121,7 @@ From the repo root:
 ```bash
 pnpm build         # build the API and the web app
 pnpm check-types   # TypeScript check (run db:generate first)
+pnpm lint          # ESLint
 ```
 
 ## Deployment
@@ -132,15 +133,15 @@ The two apps deploy separately.
 
 ## Status and what's next
 
-This is a portfolio demo. It is not a production system.
+This is a portfolio project. It is not a production system.
 
-- The login is a demo gate in the frontend. There is no real user authentication.
+- The sign-in is a fixed gate in the frontend. There is no real user authentication.
 - Due reminders are sent when the `POST /internal/jobs/dispatch-due-reminders` endpoint is called. No scheduler calls it yet.
 - There are no automated tests.
-- `pnpm lint` fails because `apps/web` has no ESLint config.
+- `pnpm lint` passes with warnings. Most of them are unused imports in `apps/web`.
 - The web build skips TypeScript errors (`ignoreBuildErrors` in `next.config.mjs`). A separate `tsc --noEmit` run on `apps/web` passes.
 
-Next: add a scheduler for reminder dispatch, real authentication, tests and a working lint setup.
+Next: add a scheduler for reminder dispatch, real authentication and tests.
 
 ---
 
