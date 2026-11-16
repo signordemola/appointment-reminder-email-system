@@ -1,221 +1,150 @@
 # Appointment Reminder Email System
 
-Appointment Reminder Email System is a portfolio-grade demo for small appointment-based businesses. It is designed to show a credible operations workflow for reducing no-shows, capturing confirmations, handling reschedule requests, and giving staff better visibility into reminder delivery.
+A demo app that sends appointment reminder emails and lets clients confirm or ask to reschedule from the email.
 
-This repo is a `pnpm` + Turborepo monorepo with:
+<!-- Screenshot: add an image of the dashboard here -->
+<!-- ![Dashboard](docs/screenshot.png) -->
 
-- `apps/web`: Next.js 16 admin and public workflow frontend
-- `apps/api`: NestJS 11 API with Prisma 7, Neon/Postgres, Resend, and Gemini AI features
+## The problem
 
-## What It Covers
+Small appointment-based businesses lose time and income when clients forget their appointments.
+Staff often send reminders by hand and cannot see who confirmed.
+This app plans the reminders, sends them by email, and shows staff the replies in one dashboard.
 
-- Mock login gate with cookie-based session (see credentials below)
-- Admin dashboard with reminder activity, delivery failures, no-shows, and pending confirmations
-- Appointment roster, appointment detail timeline, and new appointment flow
-- CSV import for appointments with row-level validation feedback
-- Contact management with full CRUD (create, edit, soft delete)
-- Public confirmation and reschedule pages with expiring action tokens
-- Reminder rule management with custom email templates and manual dispatch
-- Resend-backed email delivery flow
-- AI reschedule triage for the inbox
-- AI reminder copy generation for transactional email drafts
+## Features
 
-## Stack
+- Dashboard with reminder activity, delivery failures, no-shows and pending confirmations.
+- Appointment list, appointment detail with a timeline, and a form to add an appointment.
+- CSV import for appointments, with validation feedback for each row.
+- Contacts: create, edit and soft delete.
+- Reminder rules with custom email templates.
+- Public confirm and reschedule pages that use expiring tokens.
+- Reschedule inbox for staff.
+- Email sending through Resend, and a Resend webhook endpoint that records delivery events.
+- AI reschedule triage and AI reminder copy drafts with Google Gemini. These need a Gemini API key.
+- Demo login screen. The credentials are fixed in the frontend and shown on the login page.
 
-- Next.js 16 App Router
-- React 19
+## Tech stack
+
+- Next.js 16 (App Router) and React 19
 - NestJS 11
-- Prisma ORM 7
-- PostgreSQL / Neon
+- Prisma 7 with PostgreSQL
 - Resend
-- Google Gemini 2.5 Flash via `@google/genai`
-- Turborepo + `pnpm`
-
-## Repo Layout
+- Google Gemini through `@google/genai`
+- TanStack Query, Tailwind CSS 4, Radix UI
+- Turborepo and pnpm
 
 ```text
 apps/
-  api/  NestJS API, Prisma schema, seed, Resend, Gemini integrations
-  web/  Next.js admin dashboard and public action pages
+  api/   NestJS API, Prisma schema, seed, Resend and Gemini code
+  web/   Next.js dashboard and public confirm / reschedule pages
+packages/
+  ui, eslint-config, typescript-config
 ```
 
-## Prerequisites
+## Run locally
 
-- Node.js `20.19.0` or newer
-- `pnpm`
-- PostgreSQL connection string
+You need:
 
-Why `20.19.0+`:
+- Node.js 20.19 or later (set in `engines`; Prisma 7 supports 20.19+, 22.12+ and 24+)
+- pnpm 9 (set in `packageManager`)
+- A PostgreSQL database
 
-- Next.js 16 requires Node `20.9+`
-- Prisma ORM 7 requires Node `20.19.0+`, `22.12.0+`, or `24.0.0+`
-- The Google GenAI SDK requires Node 20 or later
+1. Install from the repo root:
 
-For the smoothest local and deployment setup, use Node 22 LTS or 24 LTS.
+   ```bash
+   pnpm install
+   ```
 
-## Local Setup
+2. Create the env files, then put your database URL in `apps/api/.env`:
 
-1. Install dependencies from the repo root:
+   ```bash
+   cp apps/api/.env.example apps/api/.env
+   cp apps/web/.env.example apps/web/.env.local
+   ```
 
-```bash
-pnpm install
-```
+3. Generate the Prisma client, create the tables and add demo data:
 
-2. Copy `apps/api/.env.example` to `apps/api/.env`.
+   ```bash
+   pnpm --filter api run db:generate
+   pnpm --filter api run db:push
+   pnpm --filter api run db:seed
+   ```
 
-3. Copy `apps/web/.env.example` to `apps/web/.env.local`.
+4. Start the API:
 
-4. Generate Prisma client, sync the schema, and seed the demo data:
+   ```bash
+   cd apps/api
+   pnpm build
+   pnpm start
+   ```
 
-```bash
-pnpm --filter api run db:generate
-pnpm --filter api run db:push
-pnpm --filter api run db:seed
-```
+5. In a second terminal, start the web app:
 
-5. Start the API:
+   ```bash
+   cd apps/web
+   pnpm dev
+   ```
 
-```bash
-cd apps/api
-pnpm build
-pnpm start
-```
+Open `http://localhost:3000`. The app sends you to the login page, which shows the demo credentials.
 
-6. In a second terminal, start the web app:
+### Environment variables
 
-```bash
-cd apps/web
-pnpm dev
-```
+The values in the `.env.example` files are fake.
 
-Open `http://localhost:3000`. You'll be redirected to the login page.
+API (`apps/api/.env`):
 
-## Demo Login Credentials
+| Variable                | Purpose                                                        |
+| ----------------------- | -------------------------------------------------------------- |
+| `DATABASE_URL`          | PostgreSQL connection URL                                      |
+| `PORT`                  | Port the API listens on. `4000` in the example                 |
+| `CORS_ORIGIN`           | URL of the web app                                             |
+| `PUBLIC_WEB_URL`        | Base URL for the confirm and reschedule links in emails        |
+| `INTERNAL_JOB_SECRET`   | Shared secret for the reminder dispatch endpoint               |
+| `RESEND_API_KEY`        | Resend API key. Needed to send real email                      |
+| `RESEND_FROM_EMAIL`     | Sender address                                                 |
+| `RESEND_REPLY_TO`       | Reply-to address                                               |
+| `RESEND_WEBHOOK_SECRET` | Optional. Verifies Resend webhooks                             |
+| `GEMINI_API_KEY_1`      | Gemini API key. Needed for the AI features                     |
+| `GEMINI_API_KEY_2`      | Optional second Gemini key                                     |
+| `GEMINI_MODEL`          | Gemini model name                                              |
 
-| Field    | Value                  |
-| -------- | ---------------------- |
-| Email    | `admin@remindflow.com` |
-| Password | `demo1234`             |
+Web (`apps/web/.env.local`):
 
-These are hardcoded in the frontend — no real auth backend is needed. The credentials are also shown on the login page itself.
+| Variable              | Purpose        |
+| --------------------- | -------------- |
+| `NEXT_PUBLIC_API_URL` | URL of the API |
 
-## Environment Variables
-
-### API
-
-Use `apps/api/.env.example` as the source of truth.
-
-Required for the core demo:
-
-- `DATABASE_URL`
-- `PORT`
-- `CORS_ORIGIN`
-- `PUBLIC_WEB_URL`
-- `INTERNAL_JOB_SECRET`
-
-Required for real email sending:
-
-- `RESEND_API_KEY`
-- `RESEND_FROM_EMAIL`
-- `RESEND_REPLY_TO`
-
-Optional for live webhook verification:
-
-- `RESEND_WEBHOOK_SECRET`
-
-Required for AI features:
-
-- `GEMINI_API_KEY_1`
-- optional `GEMINI_API_KEY_2`
-- optional fallback `GEMINI_API_KEY` or `GOOGLE_API_KEY`
-- optional `GEMINI_MODEL`
-
-Important: Gemini rotation only increases real free-tier headroom if the keys come from different Google AI Studio or Google Cloud projects.
-
-### Web
-
-Use `apps/web/.env.example` as the source of truth.
-
-- `NEXT_PUBLIC_API_URL`
-- `API_URL`
-- `INTERNAL_JOB_SECRET`
-
-In practice, set `NEXT_PUBLIC_API_URL` and `API_URL` to the same API origin unless you have a more specialized setup.
-
-## Useful Commands
+### Other commands
 
 From the repo root:
 
 ```bash
-pnpm build
-pnpm check-types
-pnpm lint
-```
-
-API-only:
-
-```bash
-pnpm --filter api run db:generate
-pnpm --filter api run db:push
-pnpm --filter api run db:seed
-pnpm --filter api run build
+pnpm build         # build the API and the web app
+pnpm check-types   # TypeScript check (run db:generate first)
 ```
 
 ## Deployment
 
-### Frontend on Vercel
+The two apps deploy separately.
 
-Current Vercel monorepo guidance is to import the repo and set a project Root Directory for each app you deploy. For this frontend:
+- Web: set the project root directory to `apps/web` and set `NEXT_PUBLIC_API_URL` to the API URL.
+- API: set the root directory to `apps/api`. Build with `pnpm install && pnpm build`. Start with `pnpm start`. Set the API variables from the table above.
 
-- Framework preset: `Next.js`
-- Root Directory: `apps/web`
-- Node.js version: `20.x` or newer
-- Environment variables:
-  - `NEXT_PUBLIC_API_URL=https://your-api-domain.com`
-  - `API_URL=https://your-api-domain.com`
-  - `INTERNAL_JOB_SECRET=...`
+## Status and what's next
 
-### API on Render
+This is a portfolio demo. It is not a production system.
 
-Render supports monorepos through a service Root Directory. For this API:
+- The login is a demo gate in the frontend. There is no real user authentication.
+- Due reminders are sent when the `POST /internal/jobs/dispatch-due-reminders` endpoint is called. No scheduler calls it yet.
+- There are no automated tests.
+- `pnpm lint` fails because `apps/web` has no ESLint config.
+- The web build skips TypeScript errors (`ignoreBuildErrors` in `next.config.mjs`). A separate `tsc --noEmit` run on `apps/web` passes.
 
-- Runtime: `Node`
-- Root Directory: `apps/api`
-- Build Command: `pnpm install && pnpm build`
-- Start Command: `pnpm start`
-- Node.js version: `20.19.0+`
+Next: add a scheduler for reminder dispatch, real authentication, tests and a working lint setup.
 
-Add these API envs in Render:
+---
 
-- `DATABASE_URL`
-- `PORT`
-- `CORS_ORIGIN=https://your-web-domain.com`
-- `PUBLIC_WEB_URL=https://your-web-domain.com`
-- `INTERNAL_JOB_SECRET=...`
-- `RESEND_API_KEY`
-- `RESEND_FROM_EMAIL`
-- `RESEND_REPLY_TO`
-- Gemini key envs if you want the AI features live
+Built by [Adedamola](https://github.com/signordemola) · [Demola Studio](https://www.demolastudio.com)
 
-If you enable the web dashboard's manual dispatch control, `INTERNAL_JOB_SECRET` must match in both the web and API deployments.
-
-## Demo Walkthrough
-
-The cleanest recorded flow for a freelance portfolio demo is:
-
-1. Open the app and sign in with the demo credentials.
-2. Show the dashboard with reminder activity, pending confirmations, and failures.
-3. Open the appointments list and detail timeline.
-4. Import a CSV batch.
-5. Open the contacts page — edit a contact, then delete one (soft delete with confirmation).
-6. Dispatch due reminders from the dashboard.
-7. Open a seeded public confirm or reschedule link.
-8. Return to the reschedule inbox and run AI triage.
-9. Open settings and generate reminder copy with Gemini.
-10. Sign out from the sidebar user menu.
-
-## Notes
-
-- This app is optimized as a believable freelance demo, not as a full HIPAA-ready production system.
-- The API intentionally uses database-backed reminder planning instead of BullMQ because the target deployment path is lightweight demo hosting.
-- If you deploy the same database used locally, you do not need to reseed just because your frontend domain changes.
+See also: [booking-engine](https://github.com/signordemola/booking-engine)
