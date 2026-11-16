@@ -2,8 +2,7 @@
 
 A demo app that sends appointment reminder emails and lets clients confirm or ask to reschedule from the email.
 
-<!-- Screenshot: add an image of the dashboard here -->
-<!-- ![Dashboard](docs/screenshot.png) -->
+![Reminder dashboard](docs/screenshot.png)
 
 ## The problem
 
